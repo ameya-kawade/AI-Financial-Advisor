@@ -39,7 +39,7 @@ def compute_metrics(profile: FinancialProfile) -> FinancialMetrics:
     net_surplus = income - expenses - debt_monthly
 
     # M02: Savings Rate — based on how much is left after expenses & debt
-    savings_contribution = max(net_surplus, 0)  # Can't save if negative surplus
+    savings_contribution = max(net_surplus, 0)
     savings_rate = (savings_contribution / income * 100) if income > 0 else 0.0
 
     # M03: Expense Ratio
@@ -50,7 +50,7 @@ def compute_metrics(profile: FinancialProfile) -> FinancialMetrics:
 
     # M05: Emergency Fund Coverage (months)
     ef_months = (savings / expenses) if expenses > 0 else float("inf")
-    ef_months = min(ef_months, 99.9)  # Cap for display
+    ef_months = min(ef_months, 99.9)
 
     # M06: Financial Health Score (composite)
     health_score = compute_health_score(
@@ -107,13 +107,27 @@ def render_metrics_dashboard(metrics: FinancialMetrics, profile: FinancialProfil
         metrics: Computed FinancialMetrics instance.
         profile: The user's FinancialProfile (for context).
     """
+    # Page header
+    st.markdown(
+        """
+        <div class="page-header">
+            <div class="page-header-icon">📊</div>
+            <div>
+                <div class="page-header-title">Health Analysis</div>
+                <div class="page-header-sub">Your 8-metric financial health dashboard.</div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     _render_health_score_hero(metrics)
     _render_critical_alerts(metrics)
     _render_metric_cards(metrics)
     _render_metrics_table(metrics, profile)
 
 
-# ── Internal Helpers ──────────────────────────────────────────────────────────
+# ── Internal Helpers ───────────────────────────────────────────────────────────
 
 def _classify(value: float, thresholds: list[tuple], final_label: str) -> str:
     """Map a numeric value to a label using ascending thresholds."""
@@ -139,19 +153,32 @@ def _render_health_score_hero(metrics: FinancialMetrics) -> None:
     color = score_to_color(score)
     label = format_score_label(score)
 
+    # Map score to badge class
+    if score >= 80:
+        badge_class = "badge-excellent"
+    elif score >= 60:
+        badge_class = "badge-good"
+    elif score >= 40:
+        badge_class = "badge-warning"
+    else:
+        badge_class = "badge-critical"
+
     st.markdown(
         f"""
-        <div style="text-align:center;padding:24px 0 16px;">
+        <div style="text-align:center;padding:28px 0 20px;">
             <div style="
                 display:inline-flex;align-items:center;justify-content:center;
-                width:120px;height:120px;border-radius:50%;
-                background:linear-gradient(135deg, {color}22, {color}44);
+                width:130px;height:130px;border-radius:50%;
+                background:linear-gradient(135deg, {color}18, {color}30);
                 border: 4px solid {color};
-                font-size:48px;font-weight:800;color:{color};
-                margin-bottom:12px;
+                font-size:52px;font-weight:800;color:{color};
+                margin-bottom:14px;
+                box-shadow: 0 4px 20px {color}30;
             ">{score}</div>
-            <div style="font-size:22px;font-weight:700;color:{color};">{label}</div>
-            <div style="font-size:14px;color:#595959;">Financial Health Score / 100</div>
+            <div style="margin-top:4px;">
+                <span class="{badge_class}" style="font-size:14px;padding:5px 16px;">{label}</span>
+            </div>
+            <div style="font-size:13px;color:#64748B;margin-top:8px;">Financial Health Score / 100</div>
         </div>
         """,
         unsafe_allow_html=True,
@@ -172,13 +199,13 @@ def _render_critical_alerts(metrics: FinancialMetrics) -> None:
             "Your debt obligations exceed 36% of income, significantly limiting financial flexibility."
         )
     if metrics.savings_rate_pct < 5 and metrics.net_monthly_surplus >= 0:
-        st.warning(
-            "⚠️ **Low Savings Rate** — You are saving less than 5% of your income. "
+        st.info(
+            "💡 **Low Savings Rate** — You are saving less than 5% of your income. "
             "Aim for at least 20% to achieve long-term financial security."
         )
     if metrics.ef_status == "insufficient":
-        st.warning(
-            f"⚠️ **Emergency Fund Insufficient** — You have {metrics.emergency_fund_months:.1f} months "
+        st.info(
+            f"💡 **Emergency Fund Insufficient** — You have {metrics.emergency_fund_months:.1f} months "
             "of coverage. Aim for a minimum of 3–6 months before aggressive investing."
         )
     if metrics.overall_status == "excellent":
@@ -190,9 +217,9 @@ def _render_critical_alerts(metrics: FinancialMetrics) -> None:
 
 def _render_metric_cards(metrics: FinancialMetrics) -> None:
     """Render the 8 metric summary cards in grid layout."""
-    st.markdown("### 📊 Key Financial Metrics")
+    st.markdown("<div class='section-label'>📊 Key Financial Metrics</div>", unsafe_allow_html=True)
 
-    surplus_color = "#1E7145" if metrics.net_monthly_surplus >= 0 else "#C0392B"
+    surplus_color = "#10B981" if metrics.net_monthly_surplus >= 0 else "#EF4444"
     surplus_label = "Monthly Buffer" if metrics.net_monthly_surplus >= 0 else "Monthly Shortfall"
 
     cards = [
@@ -230,13 +257,13 @@ def _render_metric_cards(metrics: FinancialMetrics) -> None:
             "label": "Investable Surplus",
             "value": format_inr(metrics.investable_surplus, compact=True),
             "sub": "Safe to invest monthly",
-            "color": "#2E75B6",
+            "color": "#2563EB",
         },
         {
             "label": "Debt Payoff",
             "value": format_months(metrics.debt_payoff_months) if metrics.debt_payoff_months else "No Debt 🎉",
             "sub": "At current repayment rate",
-            "color": "#595959",
+            "color": "#64748B",
         },
         {
             "label": "Health Score",
@@ -249,18 +276,14 @@ def _render_metric_cards(metrics: FinancialMetrics) -> None:
     # 4 cards per row
     for i in range(0, len(cards), 4):
         cols = st.columns(4)
-        for j, card in enumerate(cards[i : i + 4]):
+        for j, card in enumerate(cards[i: i + 4]):
             with cols[j]:
                 st.markdown(
                     f"""
-                    <div style="
-                        background:#EBF2FA;border-radius:10px;padding:16px 14px;
-                        border-left:4px solid {card['color']};margin-bottom:12px;
-                        min-height:90px;
-                    ">
-                        <div style="font-size:22px;font-weight:700;color:{card['color']};">{card['value']}</div>
-                        <div style="font-size:12px;font-weight:600;color:#1F3864;text-transform:uppercase;margin:4px 0 2px;">{card['label']}</div>
-                        <div style="font-size:11px;color:#595959;">{card['sub']}</div>
+                    <div class="kpi-card" style="border-top-color:{card['color']};">
+                        <div class="kpi-label">{card['label']}</div>
+                        <div class="kpi-value" style="color:{card['color']};">{card['value']}</div>
+                        <div class="kpi-sub">{card['sub']}</div>
                     </div>
                     """,
                     unsafe_allow_html=True,
@@ -271,7 +294,7 @@ def _render_metrics_table(metrics: FinancialMetrics, profile: FinancialProfile) 
     """Render detailed metrics comparison table."""
     import pandas as pd
 
-    st.markdown("### 📋 Detailed Metrics Breakdown")
+    st.markdown("<div class='section-label'>📋 Detailed Metrics Breakdown</div>", unsafe_allow_html=True)
 
     data = [
         {
@@ -325,21 +348,21 @@ def _render_metrics_table(metrics: FinancialMetrics, profile: FinancialProfile) 
 def _status_color(status: str, invert: bool = False) -> str:
     """Convert a status label to a hex colour. invert=True means 'high' is bad."""
     mapping = {
-        "poor": "#C0392B",
-        "moderate": "#F5A623",
-        "healthy": "#1E7145",
-        "low": "#1E7145",
-        "manageable": "#F5A623",
-        "high": "#C0392B" if invert else "#1E7145",
-        "insufficient": "#C0392B",
-        "adequate": "#F5A623",
-        "strong": "#1E7145",
-        "excellent": "#1E7145",
-        "good": "#2E75B6",
-        "needs_work": "#F5A623",
-        "critical": "#C0392B",
+        "poor": "#EF4444",
+        "moderate": "#F59E0B",
+        "healthy": "#10B981",
+        "low": "#10B981",
+        "manageable": "#F59E0B",
+        "high": "#EF4444" if invert else "#10B981",
+        "insufficient": "#EF4444",
+        "adequate": "#F59E0B",
+        "strong": "#10B981",
+        "excellent": "#10B981",
+        "good": "#2563EB",
+        "needs_work": "#F59E0B",
+        "critical": "#EF4444",
     }
-    return mapping.get(status, "#2E75B6")
+    return mapping.get(status, "#2563EB")
 
 
 def _status_label(status: str) -> str:

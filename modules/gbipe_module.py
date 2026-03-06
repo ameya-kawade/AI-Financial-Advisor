@@ -99,10 +99,16 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
         goals: List of computed GoalPlan instances.
         metrics: FinancialMetrics for context.
     """
+    # Page header
     st.markdown(
         """
-        <h2 style='color:#1F3864;margin-bottom:4px;'>🎯 Goal-Based Investment Plans</h2>
-        <p style='color:#595959;'>Personalised roadmaps for each of your financial goals.</p>
+        <div class="page-header">
+            <div class="page-header-icon">🎯</div>
+            <div>
+                <div class="page-header-title">Goal-Based Investment Plans</div>
+                <div class="page-header-sub">Personalised roadmaps for each of your financial goals.</div>
+            </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
@@ -123,7 +129,7 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
     investable = metrics.investable_surplus
     total_required = sum(g.required_monthly_saving for g in goals)
 
-    # Allocation summary
+    # Allocation summary progress bar
     if investable > 0:
         alloc_pct = min(total_required / investable * 100, 100)
         st.progress(
@@ -132,7 +138,7 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
                  f"({format_pct(alloc_pct)} of your investable surplus of {format_inr(investable)})",
         )
 
-    st.markdown("---")
+    st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
 
     for i, goal in enumerate(goals, start=1):
         _render_single_goal_card(goal, investable, i)
@@ -141,26 +147,24 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
 def _render_single_goal_card(goal: GoalPlan, investable_surplus: float, index: int) -> None:
     """Render a single goal card with metrics, allocation, and milestones."""
     status_configs = {
-        "feasible": {"icon": "✅", "color": "#1E7145", "badge": "Feasible"},
-        "tight": {"icon": "⚠️", "color": "#F5A623", "badge": "Tight — Stretch Goal"},
-        "infeasible": {"icon": "🔴", "color": "#C0392B", "badge": "Infeasible (at current savings)"},
+        "feasible":   {"icon": "✅", "color": "#10B981", "badge": "Feasible"},
+        "tight":      {"icon": "⚠️", "color": "#F59E0B", "badge": "Tight — Stretch Goal"},
+        "infeasible": {"icon": "🔴", "color": "#EF4444", "badge": "Infeasible (at current savings)"},
     }
     cfg = status_configs.get(goal.feasibility_status, status_configs["feasible"])
 
     with st.container():
         st.markdown(
             f"""
-            <div style="
-                background:white;border-radius:12px;padding:20px;
-                border-left:5px solid {cfg['color']};
-                box-shadow:0 2px 12px rgba(0,0,0,0.08);
-                margin-bottom:20px;
-            ">
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <h3 style="color:#1F3864;margin:0;">#{index} {goal.goal_name}</h3>
+            <div class="goal-card" style="border-left: 5px solid {cfg['color']};">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                    <h3 style="color:#0F172A;margin:0;font-size:1.1rem;font-weight:700;">
+                        #{index} {goal.goal_name}
+                    </h3>
                     <span style="
-                        background:{cfg['color']}22;color:{cfg['color']};
-                        padding:4px 12px;border-radius:20px;font-size:13px;font-weight:600;
+                        background:{cfg['color']}18;color:{cfg['color']};
+                        padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600;
+                        border:1px solid {cfg['color']}40;
                     ">{cfg['icon']} {cfg['badge']}</span>
                 </div>
             </div>
@@ -186,7 +190,6 @@ def _render_single_goal_card(goal: GoalPlan, investable_surplus: float, index: i
 
         # Feasibility bar
         feasibility_display = min(goal.feasibility_score, 100)
-        bar_color = cfg["color"]
         st.progress(
             feasibility_display / 100,
             text=(
@@ -219,4 +222,4 @@ def _render_single_goal_card(goal: GoalPlan, investable_surplus: float, index: i
             df = pd.DataFrame(alloc_data)
             st.dataframe(df, use_container_width=True, hide_index=True)
 
-        st.divider()
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)

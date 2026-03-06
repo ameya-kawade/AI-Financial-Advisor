@@ -21,18 +21,33 @@ GEMINI_TOP_K = 40
 GEMINI_MAX_OUTPUT_TOKENS = 4096
 
 # === LLM Provider Configuration ===
-# Options: "gemini" | "ollama"
+# Options:
+#   "auto"         → Waterfall: Gemini-cloud-via-Ollama → Gemini API → Ollama local
+#   "gemini_ollama" → Gemini cloud via Ollama only (then rule-based fallback)
+#   "gemini"       → Google Gemini REST API only (then rule-based fallback)
+#   "ollama"       → Local Ollama model only (then rule-based fallback)
 # Override via MODEL_PROVIDER environment variable in .env
-MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "gemini")
+MODEL_PROVIDER: str = os.getenv("MODEL_PROVIDER", "auto")
 
-# Ollama local inference settings
+# Ollama base URL
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+
+# Gemini cloud model served via Ollama (cloud-routed, no local download).
+# Pull with: ollama pull gemini-3-flash-preview:cloud
+OLLAMA_GEMINI_MODEL: str = os.getenv(
+    "OLLAMA_GEMINI_MODEL", "gemini-3-flash-preview:cloud"
+)
+
+# Local Ollama model for on-device inference
 OLLAMA_MODEL: str = os.getenv(
     "OLLAMA_MODEL", "qcwind/qwen2.5-7B-instruct-Q4_K_M:latest"
 )
+
+# Timeout for Gemini-cloud-via-Ollama calls (cloud model, fast response expected)
+OLLAMA_GEMINI_TIMEOUT: int = int(os.getenv("OLLAMA_GEMINI_TIMEOUT", "60"))
+
 # 300s timeout — 7B Q4 models on CPU take 3-5 min for ~800 token output.
-# The previous 120s was hitting Ollama's own internal generation deadline.
-OLLAMA_TIMEOUT: int = 300
+OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
 # === Financial Constants ===
 INFLATION_RATE = 0.06          # 6% annual default

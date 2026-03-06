@@ -1,26 +1,38 @@
 """
 Module 4: AI-Powered Advice Engine (APAE)
-Integrates with Google Gemini 2.0 Flash or a local Ollama model to generate
-structured financial advice. Falls back to rule-based advice if all providers
-are unavailable.
+Integrates with Google Gemini (via Ollama cloud or direct API) or a local Ollama
+model to generate structured financial advice. Falls back gracefully through a
+three-tier waterfall to rule-based advice if all providers fail.
 
-LLM provider is controlled by the MODEL_PROVIDER environment variable:
-  - "gemini"  → calls Google Gemini API (requires GOOGLE_API_KEY)
-  - "ollama"  → calls local Ollama REST API (requires Ollama daemon running)
+Waterfall order (MODEL_PROVIDER=auto):
+  Tier 1 → Gemini cloud via Ollama  (gemini-3-flash-preview:cloud)
+  Tier 2 → Google Gemini REST API   (requires GOOGLE_API_KEY)
+  Tier 3 → Local Ollama model       (e.g. qwen2.5-7B-Q4)
+  Final  → Deterministic rule-based advice
+
+MODEL_PROVIDER env var values:
+  "auto"          — full waterfall (default)
+  "gemini_ollama" — Tier 1 only, then rule-based
+  "gemini"        — Tier 2 only, then rule-based
+  "ollama"        — Tier 3 only, then rule-based
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import traceback
+from typing import Any
 
 import streamlit as st
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from config.settings import (
     OLLAMA_BASE_URL,
+    OLLAMA_GEMINI_MODEL,
+    OLLAMA_GEMINI_TIMEOUT,
     OLLAMA_MODEL,
     OLLAMA_TIMEOUT,
     MODEL_PROVIDER,
@@ -30,8 +42,10 @@ from models.financial_profile import FinancialProfile
 from models.goal_plan import GoalPlan
 from prompts.advice_prompts import FALLBACK_ADVICE, build_advice_prompt, build_ollama_prompt
 
+logger = logging.getLogger(__name__)
 
-# ── Public API ────────────────────────────────────────────────────────────────
+
+# ── Public API ─────────────────────────────────────────────────────────────────
 
 def generate_advice(
     profile: FinancialProfile,
@@ -39,10 +53,12 @@ def generate_advice(
     goals: list[GoalPlan],
 ) -> dict:
     """
-    Generate AI-powered financial advice.
+    Generate AI-powered financial advice using the configured provider waterfall.
 
-    Routes to Gemini or Ollama based on MODEL_PROVIDER env var.
-    Falls back to rule-based advice on any provider failure.
+    Tier 1: Gemini cloud via Ollama  (gemini-3-flash-preview:cloud)
+    Tier 2: Google Gemini REST API
+    Tier 3: Local Ollama model
+    Final:  Deterministic rule-based advice
 
     Args:
         profile: Validated FinancialProfile.
@@ -52,45 +68,102 @@ def generate_advice(
     Returns:
         Parsed advice dict matching OUTPUT_SCHEMA.
     """
-    # Allow runtime override via env var (settings.MODEL_PROVIDER is the default)
     provider = os.getenv("MODEL_PROVIDER", MODEL_PROVIDER).strip().lower()
+    full_prompt = build_advice_prompt(profile, metrics, goals)
+    compact_prompt = build_ollama_prompt(profile, metrics, goals)
+
+    tiers: list[tuple[str, callable]] = []
+
+    if provider in ("auto", "gemini_ollama"):
+        tiers.append(("Gemini Cloud (Ollama)", lambda: _call_gemini_cloud_via_ollama(full_prompt)))
+
+    if provider in ("auto", "gemini"):
+        api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+        if api_key and api_key != "your_gemini_api_key_here":
+            tiers.append(("Gemini API", lambda k=api_key: _call_gemini_api(full_prompt, k)))
+
+    if provider in ("auto", "ollama"):
+        tiers.append(("Ollama Local", lambda: _call_ollama_api(compact_prompt)))
+
+    errors: list[str] = []
+    for tier_label, tier_fn in tiers:
+        try:
+            raw = tier_fn()
+            merged = dict(FALLBACK_ADVICE)
+            merged.update(raw)
+            st.session_state["api_error"] = False
+            st.session_state["api_provider"] = tier_label
+            st.session_state["api_error_msgs"] = []
+            return merged
+        except Exception as exc:  # noqa: BLE001
+            msg = f"{tier_label}: {type(exc).__name__}: {exc}"
+            errors.append(msg)
+            logger.warning("Provider failed — %s", msg)
+
+    # All tiers failed — use rule-based fallback
+    st.session_state["api_error"] = True
+    st.session_state["api_provider"] = provider
+    st.session_state["api_error_msgs"] = errors
+    return _rule_based_advice(profile, metrics, goals)
+
+
+# ── Tier 1: Gemini Cloud via Ollama ───────────────────────────────────────────
+
+def _call_gemini_cloud_via_ollama(prompt: str) -> dict:
+    """
+    Call Gemini cloud model routed through Ollama's /api/chat endpoint.
+
+    Requires:
+      - Ollama running: `ollama serve`
+      - Model pulled:  `ollama pull gemini-3-flash-preview:cloud`
+    """
+    import requests  # noqa: PLC0415
+
+    base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
+    model_name = os.getenv("OLLAMA_GEMINI_MODEL", OLLAMA_GEMINI_MODEL)
+    timeout = int(os.getenv("OLLAMA_GEMINI_TIMEOUT", OLLAMA_GEMINI_TIMEOUT))
+    api_key = os.getenv("OLLAMA_API_KEY", "").strip()
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    payload = {
+        "model": model_name,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+    }
 
     try:
-        if provider == "ollama":
-            # Use the compact prompt designed for local 7B Q4 models
-            prompt = build_ollama_prompt(profile, metrics, goals)
-            raw = _call_ollama_api(prompt)
-        else:
-            # Default: Gemini — use the full detailed prompt
-            prompt = build_advice_prompt(profile, metrics, goals)
-            api_key = os.getenv("GOOGLE_API_KEY", "").strip()
-            if not api_key or api_key == "your_gemini_api_key_here":
-                st.session_state["api_error"] = True
-                st.session_state["api_provider"] = "gemini"
-                return _rule_based_advice(profile, metrics, goals)
-            raw = _call_gemini_api(prompt, api_key)
-
-        # Fill in any keys missing from the compact Ollama schema
-        # using FALLBACK_ADVICE as a safe default
-        merged = dict(FALLBACK_ADVICE)
-        merged.update(raw)
-        st.session_state["api_error"] = False
-        st.session_state["api_provider"] = provider
-        return merged
-
-    except Exception as exc:  # noqa: BLE001
-        st.session_state["api_error"] = True
-        st.session_state["api_provider"] = provider
-        provider_label = "Ollama" if provider == "ollama" else "Gemini"
-        st.warning(
-            f"⚠️ {provider_label} API unavailable ({type(exc).__name__}: {exc}). "
-            "Showing rule-based advice. Check your connection / config."
+        response = requests.post(
+            f"{base_url}/api/chat",
+            json=payload,
+            headers=headers,
+            timeout=timeout,
         )
-        traceback.print_exc()
-        return _rule_based_advice(profile, metrics, goals)
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        if hasattr(e.response, "status_code") and e.response.status_code == 401:
+            raise ValueError("Ollama Tier 1: 401 Unauthorized. Check your OLLAMA_API_KEY.") from e
+        if hasattr(e.response, "status_code") and e.response.status_code == 404:
+            raise ValueError(f"Ollama Tier 1: 404 Model '{model_name}' not found. Did you run 'ollama pull {model_name}'?") from e
+        raise
+
+    response_json = response.json()
+    raw_text = (
+        response_json.get("message", {}).get("content", "")
+        or response_json.get("response", "")
+    ).strip()
+
+    if not raw_text:
+        raise ValueError(
+            f"Gemini cloud via Ollama returned an empty response. Full payload: {response_json}"
+        )
+
+    return _parse_llm_output(raw_text)
 
 
-# ── Provider: Gemini ─────────────────────────────────────────────────────────
+# ── Tier 2: Gemini REST API ────────────────────────────────────────────────────
 
 @retry(
     stop=stop_after_attempt(3),
@@ -98,7 +171,7 @@ def generate_advice(
     reraise=True,
 )
 def _call_gemini_api(prompt: str, api_key: str) -> dict:
-    """Make the Gemini API call with retry logic."""
+    """Call the Google Gemini REST API with retry logic."""
     import google.generativeai as genai  # noqa: PLC0415
 
     genai.configure(api_key=api_key)
@@ -115,7 +188,7 @@ def _call_gemini_api(prompt: str, api_key: str) -> dict:
     return _parse_llm_output(response.text)
 
 
-# ── Provider: Ollama ──────────────────────────────────────────────────────────
+# ── Tier 3: Local Ollama ───────────────────────────────────────────────────────
 
 @retry(
     stop=stop_after_attempt(2),
@@ -123,23 +196,17 @@ def _call_gemini_api(prompt: str, api_key: str) -> dict:
     reraise=True,
 )
 def _call_ollama_api(prompt: str) -> dict:
-    """
-    Call the local Ollama REST API for inference.
-
-    Uses the compact ollama prompt (~400 tokens) to avoid Ollama's internal
-    generation timeout. Key settings:
-      - num_ctx: 2048   — keeps context window small; prevents OOM/timeout
-      - num_predict: 800 — cap output tokens; a 7B model is fast for short output
-      - temperature: 0.2 — slightly lower for more deterministic JSON
-      - stream: False    — wait for full response
-
-    Requires: `ollama serve` running, model pulled via `ollama pull <model>`.
-    """
+    """Call the local Ollama REST API for inference."""
     import requests  # noqa: PLC0415
 
     base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
     model_name = os.getenv("OLLAMA_MODEL", OLLAMA_MODEL)
     timeout = int(os.getenv("OLLAMA_TIMEOUT", OLLAMA_TIMEOUT))
+    api_key = os.getenv("OLLAMA_API_KEY", "").strip()
+
+    headers = {}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     payload = {
         "model": model_name,
@@ -147,15 +214,16 @@ def _call_ollama_api(prompt: str) -> dict:
         "stream": False,
         "options": {
             "temperature": 0.2,
-            "num_predict": 800,   # cap output length — enough for brief JSON
-            "num_ctx": 2048,      # small context window prevents Ollama 500s
-            "stop": ["```"],      # stop generation if model wraps in code fence
+            "num_predict": 800,
+            "num_ctx": 2048,
+            "stop": ["```"],
         },
     }
 
     response = requests.post(
         f"{base_url}/api/generate",
         json=payload,
+        headers=headers,
         timeout=timeout,
     )
     response.raise_for_status()
@@ -170,39 +238,28 @@ def _call_ollama_api(prompt: str) -> dict:
     return _parse_llm_output(raw_text)
 
 
-# ── Shared utilities ──────────────────────────────────────────────────────────
+# ── Shared utilities ───────────────────────────────────────────────────────────
 
 def _parse_llm_output(raw_text: str) -> dict:
-    """
-    Parse JSON from the raw LLM output string.
-    Strips Markdown code fences (``` / ```json) if present.
-    """
+    """Parse JSON from the raw LLM output string. Strips Markdown code fences if present."""
     text = raw_text.strip()
-
-    # Strip opening ```json or ``` fence
     if text.startswith("```"):
         lines = text.split("\n")
-        text = "\n".join(lines[1:])  # drop first line (``` or ```json)
-
-    # Strip closing ``` fence
+        text = "\n".join(lines[1:])
     if text.endswith("```"):
         text = text[: text.rfind("```")]
-
     return json.loads(text.strip())
 
 
-# ── Fallback: rule-based advice ───────────────────────────────────────────────
+# ── Fallback: rule-based advice ────────────────────────────────────────────────
 
 def _rule_based_advice(
     profile: FinancialProfile,
     metrics: FinancialMetrics,
     goals: list[GoalPlan],
 ) -> dict:
-    """
-    Generate deterministic rule-based fallback advice.
-    Used when all LLM providers are unavailable.
-    """
-    advice = dict(FALLBACK_ADVICE)
+    """Generate deterministic rule-based fallback advice."""
+    advice: dict[str, Any] = dict(FALLBACK_ADVICE)
 
     score_label = _score_label(metrics.financial_health_score)
     advice["financial_health_summary"] = (
@@ -241,7 +298,7 @@ def _rule_based_advice(
     return advice
 
 
-# ── UI Renderer ───────────────────────────────────────────────────────────────
+# ── UI Renderer ────────────────────────────────────────────────────────────────
 
 def render_advice_sections(advice: dict) -> None:
     """
@@ -250,28 +307,43 @@ def render_advice_sections(advice: dict) -> None:
     Args:
         advice: Parsed advice dict from any provider or rule-based fallback.
     """
-    # Provider / error banner
-    provider = st.session_state.get("api_provider", "gemini")
-    if st.session_state.get("api_error"):
-        st.info(
-            "ℹ️ Showing rule-based advice. "
-            + (
-                "Add your **GOOGLE_API_KEY** to `.env` for personalised AI insights from Gemini."
-                if provider == "gemini"
-                else "Ensure **Ollama** is running (`ollama serve`) with the required model pulled."
-            )
-        )
-    else:
-        provider_label = "Ollama (local)" if provider == "ollama" else "Gemini 2.0 Flash"
-        st.success(f"✅ Advice generated by **{provider_label}**.")
+    provider = st.session_state.get("api_provider", "")
+    has_error = st.session_state.get("api_error", False)
+    error_msgs = st.session_state.get("api_error_msgs", [])
 
+    # ── Page header ──────────────────────────────────────────────────────────
     st.markdown(
         """
-        <h2 style='color:#1F3864;margin-bottom:4px;'>🤖 AI Financial Advice</h2>
-        <p style='color:#595959;'>Personalised recommendations powered by your selected AI provider.</p>
+        <div class="page-header">
+            <div class="page-header-icon">🤖</div>
+            <div>
+                <div class="page-header-title">AI Financial Advice</div>
+                <div class="page-header-sub">Personalised recommendations powered by your selected AI provider.</div>
+            </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
+
+    # ── Provider status banner ───────────────────────────────────────────────
+    if has_error:
+        detail = ""
+        if error_msgs:
+            detail = " | ".join(error_msgs[:2])
+        st.info(
+            f"ℹ️ Showing rule-based advice (all AI providers unavailable). "
+            + (f"Details: {detail}" if detail else "")
+        )
+    else:
+        tier_icons = {
+            "Gemini Cloud (Ollama)": "☁️",
+            "Gemini API": "✨",
+            "Ollama Local": "🖥️",
+        }
+        icon = tier_icons.get(provider, "🤖")
+        st.success(f"✅ Advice generated by {icon} **{provider}**.")
+
+    st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
 
     # Section 1: Health Summary
     with st.expander("📋 Financial Health Summary", expanded=True):
@@ -329,18 +401,33 @@ def render_advice_sections(advice: dict) -> None:
         action = advice.get("action_plan", {})
         if isinstance(action, dict):
             c1, c2, c3 = st.columns(3)
+
             with c1:
-                st.markdown("**🗓️ Next 30 Days**")
+                st.markdown(
+                    """<div class="action-mini-card"><h4>🗓️ Next 30 Days</h4>""",
+                    unsafe_allow_html=True,
+                )
                 for a in action.get("days_30", []):
                     st.markdown(f"☐ {a}")
+                st.markdown("</div>", unsafe_allow_html=True)
+
             with c2:
-                st.markdown("**🗓️ Days 31–60**")
+                st.markdown(
+                    """<div class="action-mini-card"><h4>🗓️ Days 31–60</h4>""",
+                    unsafe_allow_html=True,
+                )
                 for a in action.get("days_60", []):
                     st.markdown(f"☐ {a}")
+                st.markdown("</div>", unsafe_allow_html=True)
+
             with c3:
-                st.markdown("**🗓️ Days 61–90**")
+                st.markdown(
+                    """<div class="action-mini-card"><h4>🗓️ Days 61–90</h4>""",
+                    unsafe_allow_html=True,
+                )
                 for a in action.get("days_90", []):
                     st.markdown(f"☐ {a}")
+                st.markdown("</div>", unsafe_allow_html=True)
 
     # Section 8: Risk Warnings & Disclaimer
     with st.expander("⚠️ Risk Warnings & Disclaimer"):

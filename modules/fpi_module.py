@@ -44,61 +44,65 @@ RISK_MAP = {
 def render_profile_form() -> None:
     """Render the complete financial profile input form with validation."""
 
+    # ── Page header ──────────────────────────────────────────────────────────
     st.markdown(
         """
-        <h2 style='color:#1F3864;margin-bottom:4px;'>📋 Financial Profile</h2>
-        <p style='color:#595959;margin-top:0;'>Fill in your financial details to get personalised advice.</p>
+        <div class="page-header">
+            <div class="page-header-icon">📋</div>
+            <div>
+                <div class="page-header-title">Financial Profile</div>
+                <div class="page-header-sub">Fill in your financial details to get personalised advice.</div>
+            </div>
+        </div>
         """,
         unsafe_allow_html=True,
     )
 
-    # Load sample data button
-    col_sample, col_clear, _ = st.columns([1, 1, 4])
+    # ── Action buttons ───────────────────────────────────────────────────────
+    col_sample, col_clear, _ = st.columns([1.1, 1, 5])
     with col_sample:
-        if st.button("🎯 Load Sample Data", help="Pre-fill with Priya's demo profile"):
-            # Bug 1 fix: _load_sample_data() calls st.rerun() internally.
-            # Any st.success() placed here is unreachable because rerun
-            # aborts execution immediately. Removed the orphaned success call.
-            _load_sample_data()  # ends with st.rerun() internally
+        if st.button("🎯 Load Sample", help="Pre-fill with Priya's demo profile"):
+            _load_sample_data()
     with col_clear:
         if st.button("🗑️ Clear Form", help="Clear all form fields"):
             _clear_form()
             st.rerun()
 
-    st.divider()
+    st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
 
-    # ── Section 1: Personal Information ──────────────────────────────
-    st.markdown("### 👤 Personal Information")
+    # ── Section 1: Personal Information ──────────────────────────────────────
+    st.markdown("<div class='section-label'>👤 Personal Information</div>", unsafe_allow_html=True)
+    with st.container():
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            name = st.text_input(
+                "Full Name *",
+                value=st.session_state.get("form_name", ""),
+                placeholder="e.g. Priya Sharma",
+                key="form_name",
+            )
+        with c2:
+            age = st.number_input(
+                "Age *",
+                min_value=16,
+                max_value=100,
+                value=st.session_state.get("form_age", 30),
+                step=1,
+                key="form_age",
+            )
+        with c3:
+            occupation = st.selectbox(
+                "Occupation *",
+                OCCUPATION_OPTIONS,
+                index=OCCUPATION_OPTIONS.index(st.session_state.get("form_occupation", "Salaried")),
+                key="form_occupation",
+            )
+
+    # ── Section 2: Income & Expenses ─────────────────────────────────────────
+    st.markdown("<div class='section-label'>💰 Income &amp; Expenses (INR / month)</div>", unsafe_allow_html=True)
+
+    # Row 1: income, expenses, savings
     c1, c2, c3 = st.columns(3)
-
-    with c1:
-        name = st.text_input(
-            "Full Name *",
-            value=st.session_state.get("form_name", ""),
-            placeholder="e.g. Priya Sharma",
-            key="form_name",
-        )
-    with c2:
-        age = st.number_input(
-            "Age *",
-            min_value=16,
-            max_value=100,
-            value=st.session_state.get("form_age", 30),
-            step=1,
-            key="form_age",
-        )
-    with c3:
-        occupation = st.selectbox(
-            "Occupation *",
-            OCCUPATION_OPTIONS,
-            index=OCCUPATION_OPTIONS.index(st.session_state.get("form_occupation", "Salaried")),
-            key="form_occupation",
-        )
-
-    # ── Section 2: Financial Snapshot ────────────────────────────────
-    st.markdown("### 💰 Monthly Finances (INR)")
-    c1, c2, c3 = st.columns(3)
-
     with c1:
         monthly_income = st.number_input(
             "Monthly Income *",
@@ -130,7 +134,8 @@ def render_profile_form() -> None:
             help="Total liquid savings available right now",
         )
 
-    c4, c5 = st.columns(2)
+    # Row 2: debt columns
+    c4, c5, _ = st.columns([1, 1, 1])
     with c4:
         monthly_debt = st.number_input(
             "Monthly Debt Repayments *",
@@ -139,7 +144,7 @@ def render_profile_form() -> None:
             step=500.0,
             format="%.0f",
             key="form_debt_monthly",
-            help="Total EMI/loan payments per month",
+            help="Total EMI / loan payments per month",
         )
     with c5:
         total_debt = st.number_input(
@@ -152,24 +157,21 @@ def render_profile_form() -> None:
             help="Total remaining principal across all loans (optional)",
         )
 
-    # Overspending warning
+    # Overspending notice
     if monthly_income > 0 and (monthly_expenses + monthly_debt) > monthly_income * 0.95:
-        st.warning(
-            "⚠️ Your expenses + debt repayments exceed 95% of income. "
-            "Consider reviewing your fixed costs."
+        st.info(
+            "💡 Your expenses + debt repayments exceed 95% of your income. "
+            "Consider reviewing your fixed costs to free up more savings capacity."
         )
 
-    # ── Section 3: Investment Preferences ────────────────────────────
-    st.markdown("### 📊 Investment Preferences")
+    # ── Section 3: Investment Preferences ────────────────────────────────────
+    st.markdown("<div class='section-label'>📊 Investment Preferences</div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
-
     with c1:
         risk_label = st.selectbox(
             "Risk Tolerance *",
             list(RISK_MAP.keys()),
-            index=list(RISK_MAP.keys()).index(
-                st.session_state.get("form_risk", "Moderate")
-            ),
+            index=list(RISK_MAP.keys()).index(st.session_state.get("form_risk", "Moderate")),
             key="form_risk",
         )
         _risk_help = {
@@ -183,9 +185,7 @@ def render_profile_form() -> None:
         horizon_label = st.selectbox(
             "Investment Horizon *",
             list(HORIZON_MAP.keys()),
-            index=list(HORIZON_MAP.keys()).index(
-                st.session_state.get("form_horizon", "Long (>7yr)")
-            ),
+            index=list(HORIZON_MAP.keys()).index(st.session_state.get("form_horizon", "Long (>7yr)")),
             key="form_horizon",
         )
 
@@ -196,8 +196,8 @@ def render_profile_form() -> None:
         key="form_existing_investments",
     )
 
-    # ── Section 4: Financial Goals ────────────────────────────────────
-    st.markdown("### 🎯 Financial Goals")
+    # ── Section 4: Financial Goals ────────────────────────────────────────────
+    st.markdown("<div class='section-label'>🎯 Financial Goals</div>", unsafe_allow_html=True)
     selected_goals = st.multiselect(
         "Select your goals *",
         GOAL_OPTIONS,
@@ -216,7 +216,7 @@ def render_profile_form() -> None:
                 months_key = f"form_goal_months_{goal}"
                 with gc1:
                     amount = st.number_input(
-                        f"Target Amount (INR) *",
+                        "Target Amount (INR) *",
                         min_value=1.0,
                         value=float(st.session_state.get(amount_key, 100000.0)),
                         step=10000.0,
@@ -225,7 +225,7 @@ def render_profile_form() -> None:
                     )
                 with gc2:
                     months = st.number_input(
-                        f"Timeline (months) *",
+                        "Timeline (months) *",
                         min_value=1,
                         max_value=480,
                         value=int(st.session_state.get(months_key, 36)),
@@ -237,7 +237,8 @@ def render_profile_form() -> None:
                     {"goal_name": goal, "target_amount": amount, "target_months": months}
                 )
 
-    # ── Submit ──────────────────────────────────────────────────────
+    # ── Submit ────────────────────────────────────────────────────────────────
+    st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
     st.divider()
     if st.button("🚀 Analyse My Finances", type="primary", use_container_width=True):
         _submit_form(
@@ -307,8 +308,7 @@ def _submit_form(**kwargs: Any) -> None:
         )
         st.balloons()
         # Bug 3 fix: Without st.rerun() the sidebar profile badge doesn't update
-        # until the next user interaction. Force a rerun so the badge shows
-        # immediately and the workflow progress bar advances to step 2.
+        # until the next user interaction.
         st.rerun()
 
     except ValidationError as exc:
