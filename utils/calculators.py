@@ -1,0 +1,137 @@
+"""
+Financial calculation helper functions.
+"""
+
+import math
+
+import numpy as np
+
+
+def compute_pmt(future_value: float, months: int, annual_rate_pct: float) -> float:
+    """
+    Compute required monthly payment (PMT) to reach a future value.
+
+    Args:
+        future_value: Target corpus amount (INR)
+        months: Number of months to reach target
+        annual_rate_pct: Expected annual return rate as percentage (e.g., 10 for 10%)
+
+    Returns:
+        Required monthly investment amount.
+    """
+    if months <= 0:
+        return future_value
+    r = annual_rate_pct / 12 / 100
+    if r == 0:
+        return future_value / months
+    pmt = future_value * r / ((1 + r) ** months - 1)
+    return round(pmt, 2)
+
+
+def compute_health_score(
+    savings_rate: float,
+    expense_ratio: float,
+    dti: float,
+    ef_months: float,
+    net_surplus: float,
+    income: float,
+) -> int:
+    """
+    Compute composite financial health score (0–100).
+
+    Weights: savings_rate=0.25, expense_ratio=0.20, dti=0.25, ef=0.20, surplus=0.10
+    """
+    # Savings rate: 20% target = perfect score
+    sr_score = min(savings_rate / 20.0 * 100, 100.0)
+
+    # Expense ratio: < 50% = 100, scales down from there
+    if expense_ratio <= 50:
+        er_score = 100.0
+    else:
+        er_score = max((1 - (expense_ratio - 50) / 50.0) * 100, 0.0)
+
+    # DTI: 36% = threshold, score zeros out above that
+    dti_score = max((1 - dti / 36.0) * 100, 0.0)
+
+    # Emergency fund: 6 months = perfect score
+    ef_score = min(ef_months / 6.0 * 100, 100.0)
+
+    # Net surplus as % of income (positive contribution)
+    if income > 0:
+        surplus_pct = net_surplus / income * 100
+        surplus_score = min(max(surplus_pct * 5, 0.0), 100.0)
+    else:
+        surplus_score = 0.0
+
+    score = (
+        sr_score * 0.25
+        + er_score * 0.20
+        + dti_score * 0.25
+        + ef_score * 0.20
+        + surplus_score * 0.10
+    )
+    return max(0, min(100, round(score)))
+
+
+def compute_inflation_adjusted(
+    target: float, years: float, inflation_rate: float = 0.06
+) -> float:
+    """
+    Adjust target amount for inflation.
+
+    Args:
+        target: Nominal target amount
+        years: Number of years to goal
+        inflation_rate: Annual inflation rate (default 6%)
+
+    Returns:
+        Inflation-adjusted target amount.
+    """
+    return target * (1 + inflation_rate) ** years
+
+
+def compute_adjusted_timeline(
+    investable_surplus: float, target: float, annual_rate_pct: float
+) -> int:
+    """
+    Find minimum months required to reach target given fixed monthly contribution.
+
+    Args:
+        investable_surplus: Fixed monthly contribution amount
+        target: Target corpus amount
+        annual_rate_pct: Expected annual return as percentage
+
+    Returns:
+        Minimum number of months required.
+    """
+    if investable_surplus <= 0:
+        return 480  # Max timeline
+
+    r = annual_rate_pct / 12 / 100
+    if r == 0:
+        return int(math.ceil(target / investable_surplus))
+
+    try:
+        months = math.log(1 + (target * r / investable_surplus)) / math.log(1 + r)
+        result = int(math.ceil(months))
+        return min(result, 480)
+    except (ValueError, ZeroDivisionError):
+        return 480
+
+
+def compute_future_value(monthly_pmt: float, months: int, annual_rate_pct: float) -> float:
+    """
+    Compute future value of a series of equal monthly payments.
+
+    Args:
+        monthly_pmt: Monthly contribution amount
+        months: Number of months
+        annual_rate_pct: Expected annual return rate as percentage
+
+    Returns:
+        Future value of the investment series.
+    """
+    r = annual_rate_pct / 12 / 100
+    if r == 0:
+        return monthly_pmt * months
+    return monthly_pmt * ((1 + r) ** months - 1) / r
