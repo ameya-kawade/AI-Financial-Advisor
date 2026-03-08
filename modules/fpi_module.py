@@ -1,7 +1,4 @@
-"""
-Module 1: Financial Profile Input (FPI)
-Renders the profile input form and validates user data into a FinancialProfile model.
-"""
+"""Financial Profile Input (FPI) module."""
 
 from __future__ import annotations
 
@@ -41,10 +38,32 @@ RISK_MAP = {
 }
 
 
+
+def _init_form_defaults() -> None:
+    """Set default values for form fields if not already in session state."""
+    defaults = {
+        "form_name": "",
+        "form_age": 30,
+        "form_occupation": "Salaried",
+        "form_income": 0.0,
+        "form_expenses": 0.0,
+        "form_savings": 0.0,
+        "form_debt_monthly": 0.0,
+        "form_debt_total": 0.0,
+        "form_risk": "Moderate",
+        "form_horizon": "Long (>7yr)",
+        "form_existing_investments": [],
+        "form_goals": [],
+    }
+    for key, val in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = val
+
 def render_profile_form() -> None:
     """Render the complete financial profile input form with validation."""
+    _init_form_defaults()
 
-    # ── Page header ──────────────────────────────────────────────────────────
+        # Page header
     st.markdown(
         """
         <div class="page-header">
@@ -58,7 +77,7 @@ def render_profile_form() -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Action buttons ───────────────────────────────────────────────────────
+        # Action buttons
     col_sample, col_clear, _ = st.columns([1.1, 1, 5])
     with col_sample:
         if st.button("🎯 Load Sample", help="Pre-fill with Priya's demo profile"):
@@ -70,14 +89,13 @@ def render_profile_form() -> None:
 
     st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
 
-    # ── Section 1: Personal Information ──────────────────────────────────────
+        # Section 1: Personal Information
     st.markdown("<div class='section-label'>👤 Personal Information</div>", unsafe_allow_html=True)
     with st.container():
         c1, c2, c3 = st.columns(3)
         with c1:
             name = st.text_input(
                 "Full Name *",
-                value=st.session_state.get("form_name", ""),
                 placeholder="e.g. Priya Sharma",
                 key="form_name",
             )
@@ -86,7 +104,6 @@ def render_profile_form() -> None:
                 "Age *",
                 min_value=16,
                 max_value=100,
-                value=st.session_state.get("form_age", 30),
                 step=1,
                 key="form_age",
             )
@@ -94,11 +111,10 @@ def render_profile_form() -> None:
             occupation = st.selectbox(
                 "Occupation *",
                 OCCUPATION_OPTIONS,
-                index=OCCUPATION_OPTIONS.index(st.session_state.get("form_occupation", "Salaried")),
                 key="form_occupation",
             )
 
-    # ── Section 2: Income & Expenses ─────────────────────────────────────────
+        # Section 2: Income & Expenses
     st.markdown("<div class='section-label'>💰 Income &amp; Expenses (INR / month)</div>", unsafe_allow_html=True)
 
     # Row 1: income, expenses, savings
@@ -107,7 +123,6 @@ def render_profile_form() -> None:
         monthly_income = st.number_input(
             "Monthly Income *",
             min_value=0.0,
-            value=float(st.session_state.get("form_income", 0.0)),
             step=1000.0,
             format="%.0f",
             key="form_income",
@@ -117,7 +132,6 @@ def render_profile_form() -> None:
         monthly_expenses = st.number_input(
             "Monthly Expenses *",
             min_value=0.0,
-            value=float(st.session_state.get("form_expenses", 0.0)),
             step=1000.0,
             format="%.0f",
             key="form_expenses",
@@ -127,7 +141,6 @@ def render_profile_form() -> None:
         current_savings = st.number_input(
             "Current Savings *",
             min_value=0.0,
-            value=float(st.session_state.get("form_savings", 0.0)),
             step=10000.0,
             format="%.0f",
             key="form_savings",
@@ -140,7 +153,6 @@ def render_profile_form() -> None:
         monthly_debt = st.number_input(
             "Monthly Debt Repayments *",
             min_value=0.0,
-            value=float(st.session_state.get("form_debt_monthly", 0.0)),
             step=500.0,
             format="%.0f",
             key="form_debt_monthly",
@@ -150,7 +162,6 @@ def render_profile_form() -> None:
         total_debt = st.number_input(
             "Total Debt Outstanding",
             min_value=0.0,
-            value=float(st.session_state.get("form_debt_total", 0.0)),
             step=10000.0,
             format="%.0f",
             key="form_debt_total",
@@ -164,14 +175,13 @@ def render_profile_form() -> None:
             "Consider reviewing your fixed costs to free up more savings capacity."
         )
 
-    # ── Section 3: Investment Preferences ────────────────────────────────────
+        # Section 3: Investment Preferences
     st.markdown("<div class='section-label'>📊 Investment Preferences</div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
         risk_label = st.selectbox(
             "Risk Tolerance *",
             list(RISK_MAP.keys()),
-            index=list(RISK_MAP.keys()).index(st.session_state.get("form_risk", "Moderate")),
             key="form_risk",
         )
         _risk_help = {
@@ -185,23 +195,20 @@ def render_profile_form() -> None:
         horizon_label = st.selectbox(
             "Investment Horizon *",
             list(HORIZON_MAP.keys()),
-            index=list(HORIZON_MAP.keys()).index(st.session_state.get("form_horizon", "Long (>7yr)")),
             key="form_horizon",
         )
 
     existing_investments = st.multiselect(
         "Existing Investments",
         INVESTMENT_OPTIONS,
-        default=st.session_state.get("form_existing_investments", []),
         key="form_existing_investments",
     )
 
-    # ── Section 4: Financial Goals ────────────────────────────────────────────
+        # Section 4: Financial Goals
     st.markdown("<div class='section-label'>🎯 Financial Goals</div>", unsafe_allow_html=True)
     selected_goals = st.multiselect(
         "Select your goals *",
         GOAL_OPTIONS,
-        default=st.session_state.get("form_goals", []),
         key="form_goals",
         help="Select at least one financial goal",
     )
@@ -218,7 +225,6 @@ def render_profile_form() -> None:
                     amount = st.number_input(
                         "Target Amount (INR) *",
                         min_value=1.0,
-                        value=float(st.session_state.get(amount_key, 100000.0)),
                         step=10000.0,
                         format="%.0f",
                         key=amount_key,
@@ -228,7 +234,6 @@ def render_profile_form() -> None:
                         "Timeline (months) *",
                         min_value=1,
                         max_value=480,
-                        value=int(st.session_state.get(months_key, 36)),
                         step=6,
                         key=months_key,
                         help="How many months until you need this amount? (max 480)",
@@ -237,7 +242,7 @@ def render_profile_form() -> None:
                     {"goal_name": goal, "target_amount": amount, "target_months": months}
                 )
 
-    # ── Submit ────────────────────────────────────────────────────────────────
+        # Submit button section
     st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
     st.divider()
     if st.button("🚀 Analyse My Finances", type="primary", use_container_width=True):

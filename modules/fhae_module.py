@@ -1,7 +1,4 @@
-"""
-Module 2: Financial Health Analysis Engine (FHAE)
-Computes 8 financial health metrics and renders metric dashboard with traffic-light scoring.
-"""
+"""Financial Health Analysis Engine (FHAE) module."""
 
 from __future__ import annotations
 
@@ -35,24 +32,24 @@ def compute_metrics(profile: FinancialProfile) -> FinancialMetrics:
     total_debt = profile.total_debt_outstanding
     savings = profile.current_savings
 
-    # M01: Net Monthly Surplus
+    # Net Monthly Surplus
     net_surplus = income - expenses - debt_monthly
 
-    # M02: Savings Rate — based on how much is left after expenses & debt
+    # Savings Rate
     savings_contribution = max(net_surplus, 0)
     savings_rate = (savings_contribution / income * 100) if income > 0 else 0.0
 
-    # M03: Expense Ratio
+    # Expense Ratio
     expense_ratio = (expenses / income * 100) if income > 0 else 0.0
 
-    # M04: Debt-to-Income Ratio
+    # Debt-to-Income Ratio
     dti_ratio = (debt_monthly / income * 100) if income > 0 else 0.0
 
-    # M05: Emergency Fund Coverage (months)
+    # Emergency Fund Coverage
     ef_months = (savings / expenses) if expenses > 0 else float("inf")
     ef_months = min(ef_months, 99.9)
 
-    # M06: Financial Health Score (composite)
+    # Health Score
     health_score = compute_health_score(
         savings_rate=savings_rate,
         expense_ratio=expense_ratio,
@@ -62,10 +59,10 @@ def compute_metrics(profile: FinancialProfile) -> FinancialMetrics:
         income=income,
     )
 
-    # M07: Investable Surplus
+    # Investable Surplus
     investable_surplus = max(net_surplus * (1 - EMERGENCY_BUFFER_RATE), 0.0)
 
-    # M08: Debt Payoff Timeline
+    # Debt Payoff Timeline
     if debt_monthly > 0 and total_debt > 0:
         debt_payoff_months = int(round(total_debt / debt_monthly))
     else:
@@ -127,7 +124,7 @@ def render_metrics_dashboard(metrics: FinancialMetrics, profile: FinancialProfil
     _render_metrics_table(metrics, profile)
 
 
-# ── Internal Helpers ───────────────────────────────────────────────────────────
+# Internal Helpers
 
 def _classify(value: float, thresholds: list[tuple], final_label: str) -> str:
     """Map a numeric value to a label using ascending thresholds."""
@@ -165,20 +162,28 @@ def _render_health_score_hero(metrics: FinancialMetrics) -> None:
 
     st.markdown(
         f"""
-        <div style="text-align:center;padding:28px 0 20px;">
+        <div style="text-align:center;padding:36px 0 24px;position:relative;">
+            <div style="
+                position:absolute;top:0;left:50%;transform:translateX(-50%);
+                width:300px;height:200px;
+                background:radial-gradient(ellipse at center, {color}18 0%, transparent 70%);
+                pointer-events:none;
+            "></div>
             <div style="
                 display:inline-flex;align-items:center;justify-content:center;
-                width:130px;height:130px;border-radius:50%;
-                background:linear-gradient(135deg, {color}18, {color}30);
-                border: 4px solid {color};
-                font-size:52px;font-weight:800;color:{color};
-                margin-bottom:14px;
-                box-shadow: 0 4px 20px {color}30;
+                width:140px;height:140px;border-radius:50%;
+                background:linear-gradient(135deg, {color}15, {color}08);
+                border: 3px solid {color}60;
+                font-size:58px;font-weight:900;color:{color};
+                margin-bottom:16px;
+                box-shadow: 0 0 40px {color}30, inset 0 0 30px {color}08;
+                font-family:'DM Mono',monospace;
+                letter-spacing:-0.04em;
             ">{score}</div>
             <div style="margin-top:4px;">
-                <span class="{badge_class}" style="font-size:14px;padding:5px 16px;">{label}</span>
+                <span class="{badge_class}" style="font-size:14px;padding:6px 18px;">{label}</span>
             </div>
-            <div style="font-size:13px;color:#64748B;margin-top:8px;">Financial Health Score / 100</div>
+            <div style="font-size:12px;color:#415E80;margin-top:10px;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Financial Health Score / 100</div>
         </div>
         """,
         unsafe_allow_html=True,

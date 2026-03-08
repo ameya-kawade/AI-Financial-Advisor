@@ -4,16 +4,7 @@ Currency and number formatting utilities.
 
 
 def format_inr(amount: float, compact: bool = False) -> str:
-    """
-    Format a number in Indian numbering system (lakhs/crores).
-
-    Args:
-        amount: Numeric value to format
-        compact: If True, use compact notation (e.g., ₹1.5L, ₹2.3Cr)
-
-    Returns:
-        Formatted INR string.
-    """
+    """Format a number in Indian numbering system (lakhs/crores)."""
     if compact:
         abs_amount = abs(amount)
         if abs_amount >= 10_000_000:
@@ -82,12 +73,12 @@ def format_score_label(score: int) -> str:
 
 
 def score_to_color(score: int) -> str:
-    """Map health score to hex colour code."""
+    """Map health score to hex colour code (dark-theme vibrant)."""
     if score >= 80:
-        return "#1E7145"
+        return "#10B981"
     elif score >= 60:
-        return "#2E75B6"
+        return "#0EA5E9"
     elif score >= 40:
-        return "#F5A623"
+        return "#F59E0B"
     else:
-        return "#C0392B"
+        return "#EF4444"

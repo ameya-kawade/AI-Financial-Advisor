@@ -1,7 +1,4 @@
-"""
-Module 5: Data Visualisation Dashboard (DVD)
-Generates all 8 interactive Plotly charts and renders the tabbed dashboard.
-"""
+"""Data Visualisation Dashboard (DVD) module."""
 
 from __future__ import annotations
 
@@ -17,22 +14,39 @@ from models.goal_plan import GoalPlan
 from utils.calculators import compute_future_value
 from utils.formatters import format_inr, score_to_color
 
-# Updated colour palette — aligned with new design system
+# Theme configuration
+BG_CHART   = "rgba(0,0,0,0)"
+BG_PLOT    = "#0D1526"
+GRID_CLR   = "#1E2E47"
+FONT_CLR   = "#F0F6FF"
+FONT_MUTED = "#7A9CC0"
+
 COLORS = {
-    "primary":  "#2563EB",   # Professional blue
-    "accent":   "#6366F1",   # Secondary indigo
-    "success":  "#10B981",   # Accent green
-    "warning":  "#F59E0B",   # Amber
-    "danger":   "#EF4444",   # Red
-    "neutral":  "#64748B",   # Slate grey
-    "text":     "#0F172A",   # Near-black
-    "bg":       "#F8FAFC",   # Off-white
+    "primary":  "#0EA5E9",
+    "accent":   "#8B5CF6",
+    "success":  "#10B981",
+    "warning":  "#F59E0B",
+    "danger":   "#EF4444",
+    "neutral":  "#415E80",
+    "text":     "#F0F6FF",
+    "bg":       "#0D1526",
+    "amber":    "#F59E0B",
+    "cyan":     "#06B6D4",
+    "rose":     "#F43F5E",
 }
 
 ASSET_COLORS = [
-    "#2563EB", "#6366F1", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6",
+    "#0EA5E9", "#8B5CF6", "#10B981", "#F59E0B",
+    "#EF4444", "#06B6D4", "#F43F5E", "#A3E635",
 ]
 
+# Utility functions
+
+def hex_to_rgba(hex_color: str, opacity: float) -> str:
+    """Converts a hex color string to an rgba string for Plotly."""
+    hex_color = hex_color.lstrip('#')
+    r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+    return f"rgba({r}, {g}, {b}, {opacity})"
 
 def generate_charts(
     profile: FinancialProfile,
@@ -40,16 +54,6 @@ def generate_charts(
     goals: list[GoalPlan],
     advice: dict,
 ) -> dict[str, go.Figure]:
-    """
-    Generate all 8 Plotly figures.
-
-    Each chart is built inside its own try/except so that a single failure
-    does not abort the rest of the dashboard.
-
-    Returns:
-        Dict mapping chart_id strings to Plotly Figure objects.
-        Missing keys indicate a chart that failed to generate.
-    """
     chart_builders = {
         "budget_donut":        lambda: _budget_donut(profile, metrics),
         "health_bar":          lambda: _health_metrics_bar(metrics, profile),
@@ -65,7 +69,7 @@ def generate_charts(
     for key, builder in chart_builders.items():
         try:
             charts[key] = builder()
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             import traceback
             st.caption(f"⚠️ Chart '{key}' could not be generated — refresh to retry.")
             traceback.print_exc()
@@ -73,15 +77,7 @@ def generate_charts(
     return charts
 
 
-def _safe_plotly_chart(
-    fig: go.Figure | None,
-    chart_name: str = "chart",
-    **kwargs,
-) -> None:
-    """
-    Bug 4 fix: render a Plotly figure only if it is not None.
-    Passing None to st.plotly_chart() raises a ValueError.
-    """
+def _safe_plotly_chart(fig: go.Figure | None, chart_name: str = "chart", **kwargs) -> None:
     if fig is not None:
         st.plotly_chart(fig, **kwargs)
     else:
@@ -119,42 +115,62 @@ def render_dashboard(
     with tab1:
         c1, c2 = st.columns(2)
         with c1:
-            _safe_plotly_chart(charts.get("health_gauge"), "Health Gauge", use_container_width=True)
+            _safe_plotly_chart(charts.get("health_gauge"), "Health Gauge", width="stretch")
         with c2:
-            _safe_plotly_chart(charts.get("budget_donut"), "Budget Breakdown", use_container_width=True)
-        _safe_plotly_chart(charts.get("health_bar"), "Health Metrics Bar", use_container_width=True)
+            _safe_plotly_chart(charts.get("budget_donut"), "Budget Breakdown", width="stretch")
+        _safe_plotly_chart(charts.get("health_bar"), "Health Metrics Bar", width="stretch")
 
     with tab2:
         if goals:
-            _safe_plotly_chart(charts.get("goal_projection"), "Goal Projection", use_container_width=True)
-            _safe_plotly_chart(charts.get("goal_feasibility"), "Goal Feasibility", use_container_width=True)
+            _safe_plotly_chart(charts.get("goal_projection"), "Goal Projection", width="stretch")
+            _safe_plotly_chart(charts.get("goal_feasibility"), "Goal Feasibility", width="stretch")
         else:
             st.info("No goals defined. Add goals in your Financial Profile.")
 
     with tab3:
-        _safe_plotly_chart(charts.get("portfolio_pie"), "Portfolio Allocation", use_container_width=True)
+        _safe_plotly_chart(charts.get("portfolio_pie"), "Portfolio Allocation", width="stretch")
 
     with tab4:
-        _safe_plotly_chart(charts.get("cash_flow_waterfall"), "Cash Flow Waterfall", use_container_width=True)
+        _safe_plotly_chart(charts.get("cash_flow_waterfall"), "Cash Flow Waterfall", width="stretch")
 
     with tab5:
-        _safe_plotly_chart(charts.get("wealth_growth"), "Wealth Growth", use_container_width=True)
+        _safe_plotly_chart(charts.get("wealth_growth"), "Wealth Growth", width="stretch")
 
 
-# ── Individual Chart Generators ───────────────────────────────────────────────
+# Chart settings
 
 def _chart_layout_defaults() -> dict:
-    """Shared Plotly layout defaults for a clean, consistent look."""
     return {
-        "paper_bgcolor": "rgba(0,0,0,0)",
-        "plot_bgcolor": COLORS["bg"],
-        "font": {"family": "Inter, sans-serif", "color": COLORS["text"]},
-        "margin": {"t": 64, "b": 60, "l": 24, "r": 24},
+        "paper_bgcolor": BG_CHART,
+        "plot_bgcolor": BG_PLOT,
+        "font": {"family": "DM Sans, sans-serif", "color": FONT_CLR, "size": 12},
+        "margin": {"t": 70, "b": 60, "l": 30, "r": 30},
+        "xaxis": {
+            "gridcolor": GRID_CLR,
+            "zerolinecolor": GRID_CLR,
+            "tickfont": {"color": FONT_MUTED, "size": 11},
+            "title_font": {"color": FONT_MUTED},
+            "linecolor": GRID_CLR,
+        },
+        "yaxis": {
+            "gridcolor": GRID_CLR,
+            "zerolinecolor": GRID_CLR,
+            "tickfont": {"color": FONT_MUTED, "size": 11},
+            "title_font": {"color": FONT_MUTED},
+            "linecolor": GRID_CLR,
+        },
+        "legend": {
+            "bgcolor": "rgba(13,21,38,0.8)",
+            "bordercolor": GRID_CLR,
+            "borderwidth": 1,
+            "font": {"color": FONT_MUTED, "size": 12},
+        },
     }
 
 
+# Chart builders
+
 def _budget_donut(profile: FinancialProfile, metrics: FinancialMetrics) -> go.Figure:
-    """Donut chart showing income allocation breakdown."""
     labels = ["Expenses", "Debt Repayments", "Investable Surplus", "Emergency Buffer"]
     surplus = max(metrics.net_monthly_surplus, 0)
     buffer = surplus * 0.10
@@ -177,28 +193,40 @@ def _budget_donut(profile: FinancialProfile, metrics: FinancialMetrics) -> go.Fi
     fig = go.Figure(go.Pie(
         labels=list(labels),
         values=list(values),
-        hole=0.58,
-        marker=dict(colors=list(colors), line=dict(color="white", width=2.5)),
+        hole=0.62,
+        marker=dict(
+            colors=list(colors),
+            line=dict(color=BG_PLOT, width=3),
+        ),
         textinfo="label+percent",
+        textfont=dict(size=12, color=FONT_CLR),
         hovertemplate="<b>%{label}</b><br>₹%{value:,.0f}<br>%{percent}<extra></extra>",
+        pull=[0.03] * len(labels),
     ))
     fig.update_layout(
-        title=dict(text="Monthly Budget Breakdown", font=dict(size=15, color=COLORS["text"])),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.22, font=dict(size=12)),
+        title=dict(
+            text="Monthly Budget Breakdown",
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
+        ),
+        legend=dict(
+            orientation="h", yanchor="bottom", y=-0.25,
+            font=dict(size=11, color=FONT_MUTED),
+            bgcolor="rgba(0,0,0,0)",
+        ),
         annotations=[dict(
-            text=f"₹{profile.monthly_income/1000:.0f}K",
+            text=f"<b>₹{profile.monthly_income/1000:.0f}K</b>",
             x=0.5, y=0.5,
-            font_size=22,
-            font_color=COLORS["text"],
+            font=dict(size=22, color=FONT_CLR, family="DM Sans, sans-serif"),
             showarrow=False,
         )],
-        **_chart_layout_defaults(),
+        **{k: v for k, v in _chart_layout_defaults().items() if k not in ("xaxis", "yaxis", "legend")},
+        height=360,
     )
     return fig
 
 
 def _health_metrics_bar(metrics: FinancialMetrics, profile: FinancialProfile) -> go.Figure:
-    """Bar chart comparing actual metrics vs benchmarks."""
     metric_names = ["Savings Rate", "Expense Ratio", "DTI Ratio", "Emergency Fund (mo)"]
     actuals = [
         metrics.savings_rate_pct,
@@ -211,9 +239,9 @@ def _health_metrics_bar(metrics: FinancialMetrics, profile: FinancialProfile) ->
 
     colors_actual = []
     for i, (actual, bench) in enumerate(zip(actuals, benchmarks)):
-        if i == 0:  # savings rate: higher is better
+        if i == 0:
             colors_actual.append(COLORS["success"] if actual >= bench else COLORS["warning"])
-        else:  # lower is better
+        else:
             colors_actual.append(COLORS["success"] if actual <= bench else COLORS["danger"])
 
     fig = go.Figure()
@@ -221,37 +249,54 @@ def _health_metrics_bar(metrics: FinancialMetrics, profile: FinancialProfile) ->
         name="Your Value",
         x=metric_names,
         y=actuals,
-        marker_color=colors_actual,
-        marker_line_color="white",
-        marker_line_width=1.5,
+        marker=dict(
+            color=colors_actual,
+            line=dict(color=BG_PLOT, width=2),
+            opacity=0.9,
+        ),
         text=[f"{v:.1f}" for v in actuals],
         textposition="auto",
-        hovertemplate="<b>%{x}</b><br>Your value: %{y:.1f}<extra></extra>",
+        textfont=dict(color=FONT_CLR, size=12),
+        hovertemplate="<b>%{x}</b><br>Your value: <b>%{y:.1f}</b><extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         name="Benchmark",
         x=metric_names,
         y=benchmarks,
         mode="markers+text",
-        marker=dict(symbol="line-ew", size=22, color=COLORS["text"], line_width=3),
+        marker=dict(
+            symbol="line-ew", size=28,
+            color=COLORS["amber"],
+            line=dict(width=3, color=COLORS["amber"]),
+        ),
         text=bench_labels,
         textposition="top center",
+        textfont=dict(size=11, color=COLORS["amber"]),
         hovertemplate="<b>Benchmark</b>: %{y}<extra></extra>",
     ))
     layout = _chart_layout_defaults()
-    layout["margin"]["b"] = 80
+    layout["margin"]["b"] = 90
+    layout["yaxis"]["title"] = "Value"
     fig.update_layout(
-        title=dict(text="Financial Metrics vs Benchmarks", font=dict(size=15, color=COLORS["text"])),
-        yaxis_title="Value",
+        title=dict(
+            text="Financial Metrics vs Benchmarks",
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
+        ),
         barmode="group",
-        legend=dict(orientation="h", yanchor="bottom", y=-0.28, font=dict(size=12)),
-        **layout,
+        bargap=0.3,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=-0.32,
+            font=dict(size=12, color=FONT_MUTED),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        height=380,
+        **{k: v for k, v in layout.items() if k != "legend"},
     )
     return fig
 
 
 def _goal_projection(goals: list[GoalPlan]) -> go.Figure:
-    """Line chart showing month-by-month savings accumulation toward each goal."""
     fig = go.Figure()
 
     color_cycle = [
@@ -260,16 +305,16 @@ def _goal_projection(goals: list[GoalPlan]) -> go.Figure:
     ]
 
     for i, goal in enumerate(goals[:5]):
-        months = list(range(0, goal.target_months + 1))
+        months = list(range(0, int(goal.target_months) + 1))
         r = goal.expected_return_rate / 12 / 100
 
         cumulative = []
-        running = 0
+        running: float = 0.0
         for m in months:
             if m == 0:
-                cumulative.append(0)
+                cumulative.append(0.0)
             else:
-                running = running * (1 + r) + goal.required_monthly_saving
+                running = running * (1.0 + r) + goal.required_monthly_saving
                 cumulative.append(running)
 
         color = color_cycle[i % len(color_cycle)]
@@ -278,32 +323,39 @@ def _goal_projection(goals: list[GoalPlan]) -> go.Figure:
             y=cumulative,
             mode="lines",
             name=goal.goal_name,
-            line=dict(color=color, width=2.5),
+            line=dict(color=color, width=2.5, shape="spline"),
+            fill="tozeroy",
+            fillcolor=hex_to_rgba(color, 0.15),
             hovertemplate=f"<b>{goal.goal_name}</b><br>Month %{{x}}<br>₹%{{y:,.0f}}<extra></extra>",
         ))
         fig.add_hline(
             y=goal.inflation_adjusted_target,
             line_dash="dot",
             line_color=color,
+            line_width=1.5,
             annotation_text=f"{goal.goal_name} target",
             annotation_position="bottom right",
+            annotation=dict(font=dict(size=10, color=color)),
         )
 
     layout = _chart_layout_defaults()
     layout["margin"]["b"] = 100
+    layout["xaxis"]["title"] = "Months"
+    layout["yaxis"]["title"] = "Accumulated Savings (INR)"
     fig.update_layout(
-        title=dict(text="Goal Savings Projection (Month by Month)", font=dict(size=15, color=COLORS["text"])),
-        xaxis_title="Months",
-        yaxis_title="Accumulated Savings (INR)",
-        legend=dict(orientation="h", yanchor="bottom", y=-0.3, font=dict(size=12)),
+        title=dict(
+            text="Goal Savings Projection",
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
+        ),
         hovermode="x unified",
+        height=400,
         **layout,
     )
     return fig
 
 
 def _portfolio_pie(goals: list[GoalPlan], profile: FinancialProfile) -> go.Figure:
-    """Pie chart of recommended asset allocation from the primary goal."""
     if goals:
         allocation = goals[0].allocation_breakdown
     else:
@@ -319,26 +371,36 @@ def _portfolio_pie(goals: list[GoalPlan], profile: FinancialProfile) -> go.Figur
     fig = go.Figure(go.Pie(
         labels=labels,
         values=values,
-        hole=0.42,
-        marker=dict(colors=ASSET_COLORS[:len(labels)], line=dict(color="white", width=2.5)),
+        hole=0.50,
+        marker=dict(
+            colors=ASSET_COLORS[:len(labels)],
+            line=dict(color=BG_PLOT, width=3),
+        ),
         textinfo="label+percent",
+        textfont=dict(size=12, color=FONT_CLR),
         hovertemplate="<b>%{label}</b><br>%{value}% allocation<extra></extra>",
+        pull=[0.04 if i == 0 else 0 for i in range(len(labels))],
     ))
     layout = _chart_layout_defaults()
     layout["margin"]["b"] = 80
     fig.update_layout(
         title=dict(
             text=f"Portfolio Allocation — {profile.risk_tolerance.value.title()} / {profile.investment_horizon.value.title()}",
-            font=dict(size=15, color=COLORS["text"]),
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
         ),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.28, font=dict(size=12)),
-        **layout,
+        legend=dict(
+            orientation="h", yanchor="bottom", y=-0.28,
+            font=dict(size=12, color=FONT_MUTED),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        height=400,
+        **{k: v for k, v in layout.items() if k not in ("xaxis", "yaxis", "legend")},
     )
     return fig
 
 
 def _cash_flow_waterfall(profile: FinancialProfile, metrics: FinancialMetrics) -> go.Figure:
-    """Waterfall chart of monthly cash flow."""
     surplus = metrics.net_monthly_surplus
     fig = go.Figure(go.Waterfall(
         name="Cash Flow",
@@ -346,7 +408,7 @@ def _cash_flow_waterfall(profile: FinancialProfile, metrics: FinancialMetrics) -
         measure=["absolute", "relative", "relative", "total"],
         x=["Income", "Expenses", "Debt Repayments", "Net Surplus"],
         y=[profile.monthly_income, -profile.monthly_expenses, -profile.monthly_debt_repayments, surplus],
-        connector=dict(line=dict(color=COLORS["neutral"], width=0.5, dash="dot")),
+        connector=dict(line=dict(color=GRID_CLR, width=1, dash="dot")),
         increasing=dict(marker=dict(color=COLORS["success"])),
         decreasing=dict(marker=dict(color=COLORS["danger"])),
         totals=dict(marker=dict(color=COLORS["primary"])),
@@ -357,70 +419,90 @@ def _cash_flow_waterfall(profile: FinancialProfile, metrics: FinancialMetrics) -
             format_inr(surplus, compact=True),
         ],
         textposition="outside",
+        textfont=dict(color=FONT_CLR, size=12),
         hovertemplate="<b>%{x}</b><br>₹%{y:,.0f}<extra></extra>",
     ))
+    layout = _chart_layout_defaults()
+    layout["yaxis"]["title"] = "Amount (INR)"
     fig.update_layout(
-        title=dict(text="Monthly Cash Flow Breakdown", font=dict(size=15, color=COLORS["text"])),
-        yaxis_title="Amount (INR)",
+        title=dict(
+            text="Monthly Cash Flow Breakdown",
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
+        ),
         showlegend=False,
-        **_chart_layout_defaults(),
+        height=380,
+        **layout,
     )
     return fig
 
 
 def _health_gauge(metrics: FinancialMetrics) -> go.Figure:
-    """Gauge chart for financial health score."""
     score = metrics.financial_health_score
     color = score_to_color(score)
+
+    # Remap colors to dark theme
+    _score_map = {
+        "#10B981": "#10B981",
+        "#2563EB": "#0EA5E9",
+        "#F59E0B": "#F59E0B",
+        "#EF4444": "#EF4444",
+    }
+    color = _score_map.get(color, color)
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number+delta",
         value=score,
         domain={"x": [0, 1], "y": [0, 1]},
-        title={"text": "Financial Health Score", "font": {"size": 15, "color": COLORS["text"]}},
-        delta={"reference": 60, "increasing": {"color": COLORS["success"]}},
+        title={"text": "Financial Health Score", "font": {"size": 14, "color": FONT_MUTED, "family": "DM Sans, sans-serif"}},
+        delta={"reference": 60, "increasing": {"color": COLORS["success"]}, "font": {"size": 13}},
         gauge={
-            "axis": {"range": [0, 100], "tickwidth": 1, "tickcolor": COLORS["neutral"]},
-            "bar": {"color": color},
-            "bgcolor": "white",
-            "borderwidth": 1.5,
-            "bordercolor": "#E2E8F0",
+            "axis": {
+                "range": [0, 100],
+                "tickwidth": 1,
+                "tickcolor": GRID_CLR,
+                "tickfont": {"color": FONT_MUTED, "size": 10},
+            },
+            "bar": {"color": color, "thickness": 0.28},
+            "bgcolor": BG_PLOT,
+            "borderwidth": 1,
+            "bordercolor": GRID_CLR,
             "steps": [
-                {"range": [0,  40], "color": "#FEE2E2"},
-                {"range": [40, 60], "color": "#FEF3C7"},
-                {"range": [60, 80], "color": "#DBEAFE"},
-                {"range": [80, 100], "color": "#D1FAE5"},
+                {"range": [0, 40],  "color": "rgba(239,68,68,0.15)"},
+                {"range": [40, 60], "color": "rgba(245,158,11,0.12)"},
+                {"range": [60, 80], "color": "rgba(14,165,233,0.12)"},
+                {"range": [80, 100], "color": "rgba(16,185,129,0.15)"},
             ],
             "threshold": {
-                "line": {"color": COLORS["text"], "width": 3},
+                "line": {"color": FONT_CLR, "width": 2},
                 "thickness": 0.75,
                 "value": 60,
             },
         },
-        number={"font": {"size": 44, "color": color, "family": "Inter, sans-serif"}},
+        number={
+            "font": {"size": 48, "color": color, "family": "DM Mono, monospace"},
+            "suffix": "",
+        },
     ))
     fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor=BG_CHART,
+        plot_bgcolor=BG_PLOT,
         margin=dict(t=80, b=20, l=28, r=28),
-        height=280,
-        font={"family": "Inter, sans-serif"},
+        height=300,
+        font={"family": "DM Sans, sans-serif", "color": FONT_CLR},
     )
     return fig
 
 
 def _wealth_growth(metrics: FinancialMetrics, profile: FinancialProfile) -> go.Figure:
-    """Area chart of compound wealth growth over 0–30 years."""
-    from config.settings import EXPECTED_RETURN_RATES
-
     if metrics.investable_surplus <= 0:
         fig = go.Figure()
         fig.add_annotation(
             text="No investable surplus to project",
             showarrow=False,
-            font_size=16,
-            font_color=COLORS["neutral"],
+            font=dict(size=16, color=FONT_MUTED),
         )
-        fig.update_layout(**_chart_layout_defaults())
+        fig.update_layout(paper_bgcolor=BG_CHART, plot_bgcolor=BG_PLOT, height=380)
         return fig
 
     monthly_invest = metrics.investable_surplus
@@ -443,29 +525,29 @@ def _wealth_growth(metrics: FinancialMetrics, profile: FinancialProfile) -> go.F
             mode="lines",
             fill="tonexty" if label != "Conservative (7%)" else "tozeroy",
             name=label,
-            line=dict(color=color, width=2.5),
-            fillcolor=color + "1A",
+            line=dict(color=color, width=2.5, shape="spline"),
+            fillcolor=hex_to_rgba(color, 0.12),
             hovertemplate=f"<b>{label}</b><br>Year %{{x}}<br>₹%{{y:,.0f}}<extra></extra>",
         ))
 
     layout = _chart_layout_defaults()
-    layout["margin"]["b"] = 100
+    layout["margin"]["b"] = 80
+    layout["xaxis"]["title"] = "Years"
+    layout["yaxis"]["title"] = "Portfolio Value (INR)"
     fig.update_layout(
         title=dict(
-            text=f"Wealth Growth Projection (₹{monthly_invest:,.0f}/mo invested)",
-            font=dict(size=15, color=COLORS["text"]),
+            text=f"Wealth Growth Projection  (\u20b9{monthly_invest:,.0f}/mo invested)",
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
         ),
-        xaxis_title="Years",
-        yaxis_title="Portfolio Value (INR)",
-        legend=dict(orientation="h", yanchor="bottom", y=-0.28, font=dict(size=12)),
         hovermode="x unified",
+        height=420,
         **layout,
     )
     return fig
 
 
 def _goal_feasibility_chart(goals: list[GoalPlan], metrics: FinancialMetrics) -> go.Figure:
-    """Horizontal bar chart: required vs available monthly savings per goal."""
     goal_names = [g.goal_name for g in goals]
     required = [g.required_monthly_saving for g in goals]
     available = [metrics.investable_surplus] * len(goals)
@@ -476,33 +558,33 @@ def _goal_feasibility_chart(goals: list[GoalPlan], metrics: FinancialMetrics) ->
         y=goal_names,
         x=required,
         orientation="h",
-        marker_color=COLORS["warning"],
-        marker_line_color="white",
-        marker_line_width=1,
+        marker=dict(color=COLORS["warning"], opacity=0.85, line=dict(color=BG_PLOT, width=1.5)),
         text=[format_inr(r, compact=True) for r in required],
         textposition="auto",
+        textfont=dict(color=FONT_CLR, size=11),
     ))
     fig.add_trace(go.Bar(
         name="Investable Surplus",
         y=goal_names,
         x=available,
         orientation="h",
-        marker_color=COLORS["success"],
-        marker_line_color="white",
-        marker_line_width=1,
+        marker=dict(color=COLORS["success"], opacity=0.85, line=dict(color=BG_PLOT, width=1.5)),
         text=[format_inr(a, compact=True) for a in available],
         textposition="auto",
+        textfont=dict(color=FONT_CLR, size=11),
     ))
     layout = _chart_layout_defaults()
     layout["margin"]["b"] = 80
+    layout["xaxis"]["title"] = "Monthly Amount (INR)"
     fig.update_layout(
         title=dict(
             text="Goal Feasibility: Required vs Available Monthly Savings",
-            font=dict(size=15, color=COLORS["text"]),
+            font=dict(size=15, color=FONT_CLR, family="DM Sans, sans-serif"),
+            x=0.5,
         ),
-        xaxis_title="Monthly Amount (INR)",
         barmode="group",
-        legend=dict(orientation="h", yanchor="bottom", y=-0.28, font=dict(size=12)),
+        bargap=0.25,
+        height=max(300, 80 + len(goals) * 60),
         **layout,
     )
     return fig

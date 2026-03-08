@@ -8,17 +8,7 @@ import numpy as np
 
 
 def compute_pmt(future_value: float, months: int, annual_rate_pct: float) -> float:
-    """
-    Compute required monthly payment (PMT) to reach a future value.
-
-    Args:
-        future_value: Target corpus amount (INR)
-        months: Number of months to reach target
-        annual_rate_pct: Expected annual return rate as percentage (e.g., 10 for 10%)
-
-    Returns:
-        Required monthly investment amount.
-    """
+    """Compute required monthly investment (PMT) to reach a future value."""
     if months <= 0:
         return future_value
     r = annual_rate_pct / 12 / 100
@@ -41,22 +31,22 @@ def compute_health_score(
 
     Weights: savings_rate=0.25, expense_ratio=0.20, dti=0.25, ef=0.20, surplus=0.10
     """
-    # Savings rate: 20% target = perfect score
+    
     sr_score = min(savings_rate / 20.0 * 100, 100.0)
 
-    # Expense ratio: < 50% = 100, scales down from there
+    
     if expense_ratio <= 50:
         er_score = 100.0
     else:
         er_score = max((1 - (expense_ratio - 50) / 50.0) * 100, 0.0)
 
-    # DTI: 36% = threshold, score zeros out above that
+    
     dti_score = max((1 - dti / 36.0) * 100, 0.0)
 
-    # Emergency fund: 6 months = perfect score
+    
     ef_score = min(ef_months / 6.0 * 100, 100.0)
 
-    # Net surplus as % of income (positive contribution)
+    
     if income > 0:
         surplus_pct = net_surplus / income * 100
         surplus_score = min(max(surplus_pct * 5, 0.0), 100.0)

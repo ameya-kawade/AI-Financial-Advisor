@@ -1,8 +1,4 @@
-"""
-Module 3: Goal-Based Investment Planning Engine (GBIPE)
-Transforms financial goals into structured investment roadmaps with PMT calculations,
-feasibility scoring, and risk-adjusted asset allocation.
-"""
+"""Goal-Based Investment Planning Engine (GBIPE) module."""
 
 from __future__ import annotations
 

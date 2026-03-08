@@ -45,7 +45,7 @@ from prompts.advice_prompts import FALLBACK_ADVICE, build_advice_prompt, build_o
 logger = logging.getLogger(__name__)
 
 
-# ── Public API ─────────────────────────────────────────────────────────────────
+# Public Interface
 
 def generate_advice(
     profile: FinancialProfile,
@@ -107,7 +107,7 @@ def generate_advice(
     return _rule_based_advice(profile, metrics, goals)
 
 
-# ── Tier 1: Gemini Cloud via Ollama ───────────────────────────────────────────
+# Gemini Cloud (Ollama) fallback
 
 def _call_gemini_cloud_via_ollama(prompt: str) -> dict:
     """
@@ -163,7 +163,7 @@ def _call_gemini_cloud_via_ollama(prompt: str) -> dict:
     return _parse_llm_output(raw_text)
 
 
-# ── Tier 2: Gemini REST API ────────────────────────────────────────────────────
+# Gemini REST API fallback
 
 @retry(
     stop=stop_after_attempt(3),
@@ -188,7 +188,7 @@ def _call_gemini_api(prompt: str, api_key: str) -> dict:
     return _parse_llm_output(response.text)
 
 
-# ── Tier 3: Local Ollama ───────────────────────────────────────────────────────
+# Local Ollama fallback
 
 @retry(
     stop=stop_after_attempt(2),
@@ -238,7 +238,7 @@ def _call_ollama_api(prompt: str) -> dict:
     return _parse_llm_output(raw_text)
 
 
-# ── Shared utilities ───────────────────────────────────────────────────────────
+# Utilities
 
 def _parse_llm_output(raw_text: str) -> dict:
     """Parse JSON from the raw LLM output string. Strips Markdown code fences if present."""
@@ -251,7 +251,7 @@ def _parse_llm_output(raw_text: str) -> dict:
     return json.loads(text.strip())
 
 
-# ── Fallback: rule-based advice ────────────────────────────────────────────────
+# Rule-based fallback logic
 
 def _rule_based_advice(
     profile: FinancialProfile,
@@ -298,7 +298,7 @@ def _rule_based_advice(
     return advice
 
 
-# ── UI Renderer ────────────────────────────────────────────────────────────────
+# UI Components
 
 def render_advice_sections(advice: dict) -> None:
     """
@@ -311,7 +311,7 @@ def render_advice_sections(advice: dict) -> None:
     has_error = st.session_state.get("api_error", False)
     error_msgs = st.session_state.get("api_error_msgs", [])
 
-    # ── Page header ──────────────────────────────────────────────────────────
+    #
     st.markdown(
         """
         <div class="page-header">
@@ -325,7 +325,7 @@ def render_advice_sections(advice: dict) -> None:
         unsafe_allow_html=True,
     )
 
-    # ── Provider status banner ───────────────────────────────────────────────
+    #
     if has_error:
         detail = ""
         if error_msgs:

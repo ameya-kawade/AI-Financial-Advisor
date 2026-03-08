@@ -1,8 +1,4 @@
-"""
-Prompt templates for the AI-Powered Advice Engine.
-- build_advice_prompt()  → full prompt for Gemini 2.0 Flash (large model, cloud)
-- build_ollama_prompt()  → compact prompt for local Ollama 7B Q4 models
-"""
+"""Prompt templates for the AI-Powered Advice Engine."""
 
 import json
 
@@ -214,7 +210,7 @@ def build_advice_prompt(profile, metrics, goals: list) -> str:
     )
 
 
-# ── Compact Ollama prompt ─────────────────────────────────────────────────────
+# Compact Ollama prompt
 # 7B Q4 models (≈4GB RAM) need short prompts to avoid internal timeouts.
 # We request only 5 essential keys and keep each value brief.
 

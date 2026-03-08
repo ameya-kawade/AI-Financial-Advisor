@@ -1,8 +1,4 @@
-"""
-Module 6: Report & Export Engine (REE)
-Generates a professional PDF report using ReportLab with all 8 sections,
-embedded charts, and formatted financial data.
-"""
+"""Report & Export Engine (REE) module."""
 
 from __future__ import annotations
 
@@ -76,7 +72,7 @@ def generate_report(
     styles = _build_styles()
     story = []
 
-    # ── R01: Cover Page ──────────────────────────────────────────────
+        # Cover Page
     story.append(Spacer(1, 3 * cm))
     story.append(Paragraph("💰 AI Financial Advisor", styles["cover_title"]))
     story.append(Spacer(1, 0.5 * cm))
@@ -99,7 +95,7 @@ def generate_report(
     ))
     story.append(PageBreak())
 
-    # ── R02: Executive Summary ───────────────────────────────────────
+        # Executive Summary
     story.append(Paragraph("Executive Summary", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
     story.append(Spacer(1, 0.3 * cm))
@@ -109,7 +105,7 @@ def generate_report(
     story.append(Paragraph(summary_text, styles["body"]))
     story.append(Spacer(1, 0.5 * cm))
 
-    # ── R03: Financial Metrics Table ─────────────────────────────────
+        # Financial Metrics Table
     story.append(Paragraph("Financial Health Metrics", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
     story.append(Spacer(1, 0.3 * cm))
@@ -140,7 +136,7 @@ def generate_report(
     story.append(t)
     story.append(Spacer(1, 0.5 * cm))
 
-    # ── R04: AI Recommendations ──────────────────────────────────────
+        # AI Recommendations
     story.append(PageBreak())
     story.append(Paragraph("AI-Powered Recommendations", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
@@ -180,7 +176,7 @@ def generate_report(
             story.append(at)
     story.append(Spacer(1, 0.3 * cm))
 
-    # ── R05: Goal Plans ──────────────────────────────────────────────
+        # Goal Plans
     if goals:
         story.append(PageBreak())
         story.append(Paragraph("Goal Investment Roadmaps", styles["section_title"]))
@@ -211,7 +207,7 @@ def generate_report(
                     story.append(Paragraph(f"  ✓ {_clean_text(str(m))}", styles["body"]))
                 story.append(Spacer(1, 0.2 * cm))
 
-    # ── R07: 30-60-90 Action Plan ────────────────────────────────────
+        # Action Plan
     story.append(PageBreak())
     story.append(Paragraph("30-60-90 Day Action Plan", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
@@ -234,7 +230,7 @@ def generate_report(
         at.setStyle(_basic_table_style())
         story.append(at)
 
-    # ── R08: Disclaimer ──────────────────────────────────────────────
+        # Disclaimer
     story.append(Spacer(1, 1 * cm))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CCCCCC")))
     story.append(Spacer(1, 0.3 * cm))
@@ -252,7 +248,7 @@ def generate_report(
     return buf
 
 
-# ── Style Builders ────────────────────────────────────────────────────────────
+# PDF Styles
 
 def _build_styles() -> dict:
     from reportlab.lib.styles import ParagraphStyle
