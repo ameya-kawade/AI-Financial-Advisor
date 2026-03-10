@@ -40,7 +40,6 @@ RISK_MAP = {
 
 
 def _init_form_defaults() -> None:
-    """Set default values for form fields if not already in session state."""
     defaults = {
         "form_name": "",
         "form_age": 30,
@@ -60,7 +59,6 @@ def _init_form_defaults() -> None:
             st.session_state[key] = val
 
 def render_profile_form() -> None:
-    """Render the complete financial profile input form with validation."""
     _init_form_defaults()
 
         # Page header
@@ -77,7 +75,7 @@ def render_profile_form() -> None:
         unsafe_allow_html=True,
     )
 
-        # Action buttons
+
     col_sample, col_clear, _ = st.columns([1.1, 1, 5])
     with col_sample:
         if st.button("🎯 Load Sample", help="Pre-fill with Priya's demo profile"):
@@ -89,7 +87,7 @@ def render_profile_form() -> None:
 
     st.markdown("<div style='margin-top:16px;'></div>", unsafe_allow_html=True)
 
-        # Section 1: Personal Information
+
     st.markdown("<div class='section-label'>👤 Personal Information</div>", unsafe_allow_html=True)
     with st.container():
         c1, c2, c3 = st.columns(3)
@@ -114,10 +112,10 @@ def render_profile_form() -> None:
                 key="form_occupation",
             )
 
-        # Section 2: Income & Expenses
+
     st.markdown("<div class='section-label'>💰 Income &amp; Expenses (INR / month)</div>", unsafe_allow_html=True)
 
-    # Row 1: income, expenses, savings
+
     c1, c2, c3 = st.columns(3)
     with c1:
         monthly_income = st.number_input(
@@ -147,7 +145,7 @@ def render_profile_form() -> None:
             help="Total liquid savings available right now",
         )
 
-    # Row 2: debt columns
+
     c4, c5, _ = st.columns([1, 1, 1])
     with c4:
         monthly_debt = st.number_input(
@@ -175,7 +173,7 @@ def render_profile_form() -> None:
             "Consider reviewing your fixed costs to free up more savings capacity."
         )
 
-        # Section 3: Investment Preferences
+
     st.markdown("<div class='section-label'>📊 Investment Preferences</div>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
@@ -204,7 +202,7 @@ def render_profile_form() -> None:
         key="form_existing_investments",
     )
 
-        # Section 4: Financial Goals
+
     st.markdown("<div class='section-label'>🎯 Financial Goals</div>", unsafe_allow_html=True)
     selected_goals = st.multiselect(
         "Select your goals *",
@@ -242,7 +240,7 @@ def render_profile_form() -> None:
                     {"goal_name": goal, "target_amount": amount, "target_months": months}
                 )
 
-        # Submit button section
+
     st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
     st.divider()
     if st.button("🚀 Analyse My Finances", type="primary", use_container_width=True):
@@ -263,7 +261,6 @@ def render_profile_form() -> None:
 
 
 def _submit_form(**kwargs: Any) -> None:
-    """Validate form data and update session state with FinancialProfile."""
     name = kwargs["name"]
     goal_inputs = kwargs["goal_inputs"]
 
@@ -324,18 +321,6 @@ def _submit_form(**kwargs: Any) -> None:
 
 
 def validate_profile(raw_data: dict) -> FinancialProfile:
-    """
-    Validate and structure raw form input into a FinancialProfile model.
-
-    Args:
-        raw_data: Dictionary of raw form values.
-
-    Returns:
-        Validated FinancialProfile instance.
-
-    Raises:
-        pydantic.ValidationError on invalid input.
-    """
     goals = [
         GoalInput(
             goal_name=g["goal_name"],
@@ -348,7 +333,6 @@ def validate_profile(raw_data: dict) -> FinancialProfile:
 
 
 def _load_sample_data() -> None:
-    """Pre-fill session state with Priya's sample profile."""
     sp = SAMPLE_PROFILE
     st.session_state["form_name"] = sp["name"]
     st.session_state["form_age"] = sp["age"]

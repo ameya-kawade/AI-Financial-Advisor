@@ -1,10 +1,4 @@
-"""
-Currency and number formatting utilities.
-"""
-
-
 def format_inr(amount: float, compact: bool = False) -> str:
-    """Format a number in Indian numbering system (lakhs/crores)."""
     if compact:
         abs_amount = abs(amount)
         if abs_amount >= 10_000_000:

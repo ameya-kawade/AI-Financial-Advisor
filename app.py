@@ -1,5 +1,3 @@
-"""Main entry point for the AI Financial Advisor."""
-
 from __future__ import annotations
 
 import os
@@ -8,18 +6,19 @@ from datetime import datetime
 import streamlit as st
 from dotenv import load_dotenv
 
-# Load environment variables
+
 load_dotenv()
 
 from config.settings import APP_FOOTER, APP_ICON, APP_TITLE
 from modules.apae_module import generate_advice, render_advice_sections
+from modules.chat_module import ask_financial_advisor
 from modules.dvd_module import generate_charts, render_dashboard
 from modules.fhae_module import compute_metrics, render_metrics_dashboard
 from modules.fpi_module import render_profile_form
 from modules.gbipe_module import analyse_goals, render_goal_cards
 from modules.ree_module import generate_report
 
-# Theme constants
+
 PRIMARY        = "#0EA5E9"   # Sky blue — vivid, modern
 PRIMARY_DARK   = "#0284C7"
 SECONDARY      = "#8B5CF6"   # Violet accent
@@ -37,7 +36,7 @@ GLOW_BLUE      = "rgba(14,165,233,0.18)"
 GLOW_VIOLET    = "rgba(139,92,246,0.15)"
 GLOW_GREEN     = "rgba(16,185,129,0.15)"
 
-# Custom Styles
+
 CUSTOM_CSS = f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=DM+Mono:wght@400;500&display=swap');
@@ -395,14 +394,52 @@ label[data-baseweb="label"],
     color: {TEXT_MUTED} !important; font-size: 12px !important;
 }}
 hr {{ border-color: {BORDER} !important; }}
+
+.chat-response-card {{
+    background: {BG3};
+    border: 1px solid {BORDER};
+    border-left: 3px solid {PRIMARY};
+    border-radius: 14px;
+    padding: 24px 22px;
+    margin-top: 20px;
+    line-height: 1.75;
+    font-size: 14px;
+}}
+.chat-response-card p {{ margin-bottom: 12px; }}
+
+.chat-context-strip {{
+    background: {BG3};
+    border: 1px solid {BORDER};
+    border-radius: 12px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    align-items: center;
+}}
+.chat-ctx-item {{
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}}
+.chat-ctx-label {{
+    font-size: 9.5px;
+    font-weight: 700;
+    color: {TEXT_MUTED};
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}}
+.chat-ctx-value {{
+    font-size: 13px;
+    font-weight: 700;
+    color: {TEXT_PRIMARY};
+}}
 </style>
 """
 
 
-# UI Helpers
-
 def page_header(icon: str, title: str, subtitle: str) -> None:
-    """Render a consistent page header card."""
     st.markdown(
         f"""
         <div class="page-header">
@@ -417,8 +454,6 @@ def page_header(icon: str, title: str, subtitle: str) -> None:
     )
 
 
-# Session Management
-
 def init_session_state() -> None:
     """Initialise all session state keys with defaults."""
     defaults = {
@@ -431,13 +466,14 @@ def init_session_state() -> None:
         "theme": "dark",
         "last_updated": None,
         "api_error": False,
+        "chat_response": None,
+        "chat_question": "",
+        "chat_provider": "",
     }
     for key, val in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = val
 
-
-# Page Content
 
 def render_home() -> None:
     """Home / landing page."""
@@ -533,7 +569,6 @@ def render_home() -> None:
 
 
 def render_analysis_page() -> None:
-    """Financial Health Analysis page."""
     profile = st.session_state.get("profile")
     if not profile:
         page_header("📊", "Health Analysis", "Your 8-metric financial health dashboard.")
@@ -573,7 +608,6 @@ def render_goals_page() -> None:
 
 
 def render_advice_page() -> None:
-    """AI Advice page."""
     profile = st.session_state.get("profile")
     metrics = st.session_state.get("metrics")
     goals = st.session_state.get("goals", [])
@@ -623,8 +657,123 @@ def render_dashboard_page() -> None:
         st.rerun()
 
 
+
+def render_chat_page() -> None:
+    """AI Chat page — free-form financial Q&A."""
+    profile = st.session_state.get("profile")
+    metrics = st.session_state.get("metrics")
+
+    page_header(
+        "🗨️",
+        "AI Chat",
+        "Ask any financial question — the AI responds using your personal financial data.",
+    )
+
+    if not profile:
+        st.info("📋 Please complete your **Financial Profile** first so the AI can personalise its answers.")
+        return
+
+    # Compute metrics on demand if not yet done
+    if not metrics:
+        with st.spinner("⚙️ Computing your financial metrics first..."):
+            metrics = compute_metrics(profile)
+            st.session_state["metrics"] = metrics
+
+    # Financial context strip
+    score = metrics.financial_health_score
+    score_color = (
+        ACCENT if score >= 80 else PRIMARY if score >= 60 else ACCENT2 if score >= 40 else "#F87171"
+    )
+    st.markdown(
+        f"""
+        <div class="chat-context-strip">
+            <div class="chat-ctx-item">
+                <div class="chat-ctx-label">Health Score</div>
+                <div class="chat-ctx-value" style="color:{score_color};">{score}/100</div>
+            </div>
+            <div class="chat-ctx-item">
+                <div class="chat-ctx-label">Monthly Surplus</div>
+                <div class="chat-ctx-value">₹{metrics.net_monthly_surplus:,.0f}</div>
+            </div>
+            <div class="chat-ctx-item">
+                <div class="chat-ctx-label">Savings Rate</div>
+                <div class="chat-ctx-value">{metrics.savings_rate_pct:.1f}%</div>
+            </div>
+            <div class="chat-ctx-item">
+                <div class="chat-ctx-label">DTI Ratio</div>
+                <div class="chat-ctx-value">{metrics.dti_ratio_pct:.1f}%</div>
+            </div>
+            <div class="chat-ctx-item">
+                <div class="chat-ctx-label">Emergency Fund</div>
+                <div class="chat-ctx-value">{metrics.emergency_fund_months:.1f} months</div>
+            </div>
+            <div style="margin-left:auto;">
+                <span style="font-size:11px;color:{TEXT_MUTED};">Context: {profile.name} · {profile.occupation} · {profile.risk_tolerance.value.title()} Risk</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # Question input
+    question = st.text_area(
+        "Your question",
+        value=st.session_state.get("chat_question", ""),
+        placeholder="e.g. How should I reduce my debt fastest? What SIP amount should I start with?",
+        height=90,
+        label_visibility="collapsed",
+        key="chat_input",
+    )
+
+    col_btn, col_clear = st.columns([1, 5])
+    with col_btn:
+        send_clicked = st.button("✨ Ask", type="primary", use_container_width=True)
+    with col_clear:
+        if st.session_state.get("chat_response") and st.button("🗑️ Clear", use_container_width=False):
+            st.session_state["chat_response"] = None
+            st.session_state["chat_question"] = ""
+            st.session_state["chat_provider"] = ""
+            st.rerun()
+
+    if send_clicked:
+        q = question.strip()
+        if not q:
+            st.warning("Please type a question before clicking Ask.")
+        else:
+            st.session_state["chat_question"] = q
+            with st.spinner("🤖 Thinking..."):
+                try:
+                    answer, provider_label = ask_financial_advisor(q, profile, metrics)
+                    st.session_state["chat_response"] = answer
+                    st.session_state["chat_provider"] = provider_label
+                except Exception as exc:
+                    st.session_state["chat_response"] = None
+                    st.error(f"❌ Could not get a response: {exc}")
+
+    # Response display
+    response = st.session_state.get("chat_response")
+    if response:
+        provider_label = st.session_state.get("chat_provider", "")
+        tier_icons = {
+            "Gemini Cloud (Ollama)": "☁️",
+            "Gemini API": "✨",
+            "Ollama Local": "🖥️",
+            "Rule-based": "⚙️",
+        }
+        icon = tier_icons.get(provider_label, "🤖")
+        st.markdown(
+            f"<div style='font-size:12px;color:{TEXT_MUTED};margin-top:16px;'>"
+            f"{icon} <strong style='color:{TEXT_SECONDARY};'>{provider_label}</strong>&nbsp;&nbsp;·&nbsp;&nbsp;"
+            f"<em style='color:{TEXT_MUTED};'>Based on your live financial profile</em></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            f"<div class='chat-response-card'>{response}</div>",
+            unsafe_allow_html=True,
+        )
+
+
 def render_export_page() -> None:
-    """PDF Export page."""
     profile = st.session_state.get("profile")
     metrics = st.session_state.get("metrics")
     goals = st.session_state.get("goals", [])
@@ -692,8 +841,6 @@ def render_export_page() -> None:
                 st.error(f"❌ PDF generation failed: {e}. Please try again.")
 
 
-# Sidebar Navigation
-
 def render_sidebar() -> str:
     """Render the navigation sidebar. Returns selected page name."""
     with st.sidebar:
@@ -731,6 +878,7 @@ def render_sidebar() -> str:
             "📊 Health Analysis",
             "🎯 Goal Planning",
             "🤖 AI Advice",
+            "🗨️ AI Chat",
             "📈 Dashboard",
             "📄 Export Report",
         ]
@@ -768,9 +916,6 @@ def render_sidebar() -> str:
 
     return page
 
-
-# Run App
-
 def main() -> None:
     """Main application entrypoint."""
     st.set_page_config(
@@ -794,6 +939,8 @@ def main() -> None:
         render_goals_page()
     elif page == "🤖 AI Advice":
         render_advice_page()
+    elif page == "🗨️ AI Chat":
+        render_chat_page()
     elif page == "📈 Dashboard":
         render_dashboard_page()
     elif page == "📄 Export Report":

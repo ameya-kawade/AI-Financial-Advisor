@@ -1,8 +1,3 @@
-"""
-Risk-based asset allocation matrix.
-Keys: (horizon, risk_tolerance) → allocation percentages dict.
-"""
-
 # Horizon keys: 'short', 'medium', 'long'
 # Risk keys: 'conservative', 'moderate', 'aggressive'
 

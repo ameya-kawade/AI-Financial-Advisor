@@ -1,14 +1,9 @@
-"""
-Financial calculation helper functions.
-"""
-
 import math
 
 import numpy as np
 
 
 def compute_pmt(future_value: float, months: int, annual_rate_pct: float) -> float:
-    """Compute required monthly investment (PMT) to reach a future value."""
     if months <= 0:
         return future_value
     r = annual_rate_pct / 12 / 100
@@ -26,27 +21,17 @@ def compute_health_score(
     net_surplus: float,
     income: float,
 ) -> int:
-    """
-    Compute composite financial health score (0–100).
-
-    Weights: savings_rate=0.25, expense_ratio=0.20, dti=0.25, ef=0.20, surplus=0.10
-    """
-    
     sr_score = min(savings_rate / 20.0 * 100, 100.0)
 
-    
     if expense_ratio <= 50:
         er_score = 100.0
     else:
         er_score = max((1 - (expense_ratio - 50) / 50.0) * 100, 0.0)
 
-    
     dti_score = max((1 - dti / 36.0) * 100, 0.0)
 
-    
     ef_score = min(ef_months / 6.0 * 100, 100.0)
 
-    
     if income > 0:
         surplus_pct = net_surplus / income * 100
         surplus_score = min(max(surplus_pct * 5, 0.0), 100.0)
@@ -66,34 +51,12 @@ def compute_health_score(
 def compute_inflation_adjusted(
     target: float, years: float, inflation_rate: float = 0.06
 ) -> float:
-    """
-    Adjust target amount for inflation.
-
-    Args:
-        target: Nominal target amount
-        years: Number of years to goal
-        inflation_rate: Annual inflation rate (default 6%)
-
-    Returns:
-        Inflation-adjusted target amount.
-    """
     return target * (1 + inflation_rate) ** years
 
 
 def compute_adjusted_timeline(
     investable_surplus: float, target: float, annual_rate_pct: float
 ) -> int:
-    """
-    Find minimum months required to reach target given fixed monthly contribution.
-
-    Args:
-        investable_surplus: Fixed monthly contribution amount
-        target: Target corpus amount
-        annual_rate_pct: Expected annual return as percentage
-
-    Returns:
-        Minimum number of months required.
-    """
     if investable_surplus <= 0:
         return 480  # Max timeline
 
@@ -110,17 +73,6 @@ def compute_adjusted_timeline(
 
 
 def compute_future_value(monthly_pmt: float, months: int, annual_rate_pct: float) -> float:
-    """
-    Compute future value of a series of equal monthly payments.
-
-    Args:
-        monthly_pmt: Monthly contribution amount
-        months: Number of months
-        annual_rate_pct: Expected annual return rate as percentage
-
-    Returns:
-        Future value of the investment series.
-    """
     r = annual_rate_pct / 12 / 100
     if r == 0:
         return monthly_pmt * months

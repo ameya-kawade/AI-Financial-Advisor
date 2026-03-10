@@ -17,15 +17,6 @@ from utils.formatters import format_inr, format_months, format_pct, format_score
 
 
 def compute_metrics(profile: FinancialProfile) -> FinancialMetrics:
-    """
-    Compute all 8 financial health metrics from validated profile.
-
-    Args:
-        profile: Validated FinancialProfile instance.
-
-    Returns:
-        FinancialMetrics with all computed values and status labels.
-    """
     income = profile.monthly_income
     expenses = profile.monthly_expenses
     debt_monthly = profile.monthly_debt_repayments
@@ -97,14 +88,7 @@ def compute_metrics(profile: FinancialProfile) -> FinancialMetrics:
 
 
 def render_metrics_dashboard(metrics: FinancialMetrics, profile: FinancialProfile) -> None:
-    """
-    Render the financial health analysis dashboard with metric cards and alerts.
 
-    Args:
-        metrics: Computed FinancialMetrics instance.
-        profile: The user's FinancialProfile (for context).
-    """
-    # Page header
     st.markdown(
         """
         <div class="page-header">
@@ -124,10 +108,9 @@ def render_metrics_dashboard(metrics: FinancialMetrics, profile: FinancialProfil
     _render_metrics_table(metrics, profile)
 
 
-# Internal Helpers
+
 
 def _classify(value: float, thresholds: list[tuple], final_label: str) -> str:
-    """Map a numeric value to a label using ascending thresholds."""
     for threshold, label in thresholds:
         if value < threshold:
             return label
@@ -145,12 +128,11 @@ def _score_to_status(score: int) -> str:
 
 
 def _render_health_score_hero(metrics: FinancialMetrics) -> None:
-    """Render prominent health score badge with label."""
     score = metrics.financial_health_score
     color = score_to_color(score)
     label = format_score_label(score)
 
-    # Map score to badge class
+
     if score >= 80:
         badge_class = "badge-excellent"
     elif score >= 60:
@@ -191,7 +173,6 @@ def _render_health_score_hero(metrics: FinancialMetrics) -> None:
 
 
 def _render_critical_alerts(metrics: FinancialMetrics) -> None:
-    """Render alert banners for critical financial conditions."""
     if metrics.net_monthly_surplus < 0:
         st.error(
             "🔴 **Critical: Negative Surplus** — Your monthly outgoings exceed your income. "
@@ -221,7 +202,6 @@ def _render_critical_alerts(metrics: FinancialMetrics) -> None:
 
 
 def _render_metric_cards(metrics: FinancialMetrics) -> None:
-    """Render the 8 metric summary cards in grid layout."""
     st.markdown("<div class='section-label'>📊 Key Financial Metrics</div>", unsafe_allow_html=True)
 
     surplus_color = "#10B981" if metrics.net_monthly_surplus >= 0 else "#EF4444"
@@ -278,7 +258,7 @@ def _render_metric_cards(metrics: FinancialMetrics) -> None:
         },
     ]
 
-    # 4 cards per row
+
     for i in range(0, len(cards), 4):
         cols = st.columns(4)
         for j, card in enumerate(cards[i: i + 4]):
@@ -296,7 +276,6 @@ def _render_metric_cards(metrics: FinancialMetrics) -> None:
 
 
 def _render_metrics_table(metrics: FinancialMetrics, profile: FinancialProfile) -> None:
-    """Render detailed metrics comparison table."""
     import pandas as pd
 
     st.markdown("<div class='section-label'>📋 Detailed Metrics Breakdown</div>", unsafe_allow_html=True)
@@ -351,7 +330,6 @@ def _render_metrics_table(metrics: FinancialMetrics, profile: FinancialProfile) 
 
 
 def _status_color(status: str, invert: bool = False) -> str:
-    """Convert a status label to a hex colour. invert=True means 'high' is bad."""
     mapping = {
         "poor": "#EF4444",
         "moderate": "#F59E0B",

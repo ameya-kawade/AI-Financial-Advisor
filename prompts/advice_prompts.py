@@ -1,5 +1,3 @@
-"""Prompt templates for the AI-Powered Advice Engine."""
-
 import json
 
 SYSTEM_PROMPT = """
@@ -160,17 +158,6 @@ FALLBACK_ADVICE = {
 
 
 def build_advice_prompt(profile, metrics, goals: list) -> str:
-    """
-    Assemble the full prompt for Gemini (large-context cloud model).
-
-    Args:
-        profile: FinancialProfile instance.
-        metrics: FinancialMetrics instance.
-        goals: List of GoalPlan instances.
-
-    Returns:
-        Complete prompt string ready for Gemini API.
-    """
     goals_section = "\n".join(
         [
             f"- {g.goal_name}: Target INR {g.target_amount:,.0f} in {g.target_months} months "
@@ -233,21 +220,6 @@ _OLLAMA_SCHEMA = {
 
 
 def build_ollama_prompt(profile, metrics, goals: list) -> str:
-    """
-    Build a COMPACT prompt for local Ollama 7B Q4 models.
-
-    Keeps token count low (~400 tokens total) so inference completes before
-    Ollama's internal generation deadline. Only requests 5 JSON keys instead
-    of 8. Values are brief (1 paragraph max each).
-
-    Args:
-        profile: FinancialProfile instance.
-        metrics: FinancialMetrics instance.
-        goals: List of GoalPlan instances.
-
-    Returns:
-        Compact prompt string suitable for local 7B models.
-    """
     goals_brief = ", ".join(
         f"{g.goal_name} (INR {g.target_amount:,.0f} in {g.target_months}mo, {g.feasibility_status})"
         for g in goals

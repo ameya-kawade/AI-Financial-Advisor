@@ -1,10 +1,6 @@
-"""
-App-wide constants and configuration settings.
-"""
-
 import os
 
-# === App Metadata ===
+
 APP_TITLE = "AI Financial Advisor"
 APP_ICON = "💰"
 APP_VERSION = "1.0.0"
@@ -13,14 +9,14 @@ APP_FOOTER = (
     "Consult a qualified CFP for personalised advice."
 )
 
-# === AI Configuration ===
+
 GEMINI_MODEL = "gemini-2.0-flash"
 GEMINI_TEMPERATURE = 0.3
 GEMINI_TOP_P = 0.95
 GEMINI_TOP_K = 40
 GEMINI_MAX_OUTPUT_TOKENS = 4096
 
-# === LLM Provider Configuration ===
+
 # Options:
 #   "auto"         → Waterfall: Gemini-cloud-via-Ollama → Gemini API → Ollama local
 #   "gemini_ollama" → Gemini cloud via Ollama only (then rule-based fallback)
@@ -49,11 +45,11 @@ OLLAMA_GEMINI_TIMEOUT: int = int(os.getenv("OLLAMA_GEMINI_TIMEOUT", "60"))
 # 300s timeout — 7B Q4 models on CPU take 3-5 min for ~800 token output.
 OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "300"))
 
-# === Financial Constants ===
+
 INFLATION_RATE = 0.06          # 6% annual default
 EMERGENCY_BUFFER_RATE = 0.10  # 10% of net surplus reserved for emergencies
 
-# === Expected Annual Return Rates by Risk Profile (%) ===
+
 EXPECTED_RETURN_RATES = {
     "conservative": 7.0,
     "moderate": 10.0,
@@ -75,7 +71,7 @@ DTI_HIGH = 36.0
 EF_INSUFFICIENT = 3.0
 EF_ADEQUATE = 6.0
 
-# === Design Tokens ===
+
 COLOR_PRIMARY = "#1F3864"
 COLOR_ACCENT = "#2E75B6"
 COLOR_SUCCESS = "#1E7145"
@@ -84,7 +80,7 @@ COLOR_DANGER = "#C0392B"
 COLOR_BACKGROUND = "#F8FAFD"
 COLOR_CARD_BG = "#EBF2FA"
 
-# === Sample Profile (Priya) ===
+
 # Bug #2 fixed: existing_investments was ["MF"] — not in INVESTMENT_OPTIONS.
 # Changed to ["Mutual Funds"] to match the multiselect widget options.
 SAMPLE_PROFILE = {

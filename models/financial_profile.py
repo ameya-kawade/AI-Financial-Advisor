@@ -1,7 +1,3 @@
-"""
-FinancialProfile Pydantic data model.
-"""
-
 from __future__ import annotations
 
 import re
@@ -24,14 +20,12 @@ class InvestmentHorizon(str, Enum):
 
 
 class GoalInput(BaseModel):
-    """Individual financial goal with target amount and timeline."""
     goal_name: str = Field(min_length=1, max_length=100)
     target_amount: float = Field(gt=0, description="Target amount in INR")
     target_months: int = Field(ge=1, le=480, description="Timeline in months")
 
 
 class FinancialProfile(BaseModel):
-    """Complete validated financial profile for a user."""
     name: str = Field(min_length=2, max_length=100)
     age: int = Field(ge=16, le=100)
     occupation: str = Field(default="Salaried")

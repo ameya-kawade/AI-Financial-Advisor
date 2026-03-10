@@ -18,16 +18,6 @@ from utils.formatters import format_inr, format_months, format_pct
 
 
 def analyse_goals(profile: FinancialProfile, metrics: FinancialMetrics) -> list[GoalPlan]:
-    """
-    Analyse each financial goal for feasibility and generate investment plans.
-
-    Args:
-        profile: Validated FinancialProfile.
-        metrics: Computed FinancialMetrics.
-
-    Returns:
-        List[GoalPlan] sorted by priority_score descending.
-    """
     horizon_str = profile.investment_horizon.value
     risk_str = profile.risk_tolerance.value
     expected_rate = EXPECTED_RETURN_RATES.get(risk_str, 10.0)
@@ -40,15 +30,15 @@ def analyse_goals(profile: FinancialProfile, metrics: FinancialMetrics) -> list[
         months = goal_input.target_months
         years = months / 12
 
-        # Inflation-adjusted target
+
         inflation_target = compute_inflation_adjusted(
             goal_input.target_amount, years, INFLATION_RATE
         )
 
-        # Required monthly saving (PMT)
+
         required_monthly = compute_pmt(inflation_target, months, expected_rate)
 
-        # Feasibility score
+
         feasibility_score = (investable / required_monthly * 100) if required_monthly > 0 else 0.0
 
         if feasibility_score < 80:
@@ -63,7 +53,7 @@ def analyse_goals(profile: FinancialProfile, metrics: FinancialMetrics) -> list[
             feasibility_status = "feasible"
             adjusted_timeline = None
 
-        # Priority score: urgency-weighted (shorter timeline = higher urgency)
+
         priority_score = 1000 / max(months, 1)
 
         goal_plans.append(
@@ -82,20 +72,13 @@ def analyse_goals(profile: FinancialProfile, metrics: FinancialMetrics) -> list[
             )
         )
 
-    # Sort by priority (most urgent first)
+
     goal_plans.sort(key=lambda g: g.priority_score, reverse=True)
     return goal_plans
 
 
 def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
-    """
-    Render goal investment plan cards with progress bars and allocation tables.
 
-    Args:
-        goals: List of computed GoalPlan instances.
-        metrics: FinancialMetrics for context.
-    """
-    # Page header
     st.markdown(
         """
         <div class="page-header">
@@ -113,7 +96,7 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
         st.info("No goals defined. Go back to your Financial Profile and add at least one goal.")
         return
 
-    # Negative surplus: disable investment advice
+
     if metrics.net_monthly_surplus < 0:
         surplus_needed = abs(metrics.net_monthly_surplus)
         st.error(
@@ -125,7 +108,7 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
     investable = metrics.investable_surplus
     total_required = sum(g.required_monthly_saving for g in goals)
 
-    # Allocation summary progress bar
+
     if investable > 0:
         alloc_pct = min(total_required / investable * 100, 100)
         st.progress(
@@ -141,7 +124,6 @@ def render_goal_cards(goals: list[GoalPlan], metrics: FinancialMetrics) -> None:
 
 
 def _render_single_goal_card(goal: GoalPlan, investable_surplus: float, index: int) -> None:
-    """Render a single goal card with metrics, allocation, and milestones."""
     status_configs = {
         "feasible":   {"icon": "✅", "color": "#10B981", "badge": "Feasible"},
         "tight":      {"icon": "⚠️", "color": "#F59E0B", "badge": "Tight — Stretch Goal"},
@@ -184,7 +166,7 @@ def _render_single_goal_card(goal: GoalPlan, investable_surplus: float, index: i
                 delta_color="normal",
             )
 
-        # Feasibility bar
+
         feasibility_display = min(goal.feasibility_score, 100)
         st.progress(
             feasibility_display / 100,
@@ -201,7 +183,7 @@ def _render_single_goal_card(goal: GoalPlan, investable_surplus: float, index: i
                 f"**{format_months(goal.adjusted_timeline_months)}** instead."
             )
 
-        # Asset allocation table
+
         with st.expander("📊 View Asset Allocation", expanded=(index == 1)):
             import pandas as pd
 

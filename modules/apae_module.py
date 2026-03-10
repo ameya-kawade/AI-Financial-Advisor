@@ -1,22 +1,3 @@
-"""
-Module 4: AI-Powered Advice Engine (APAE)
-Integrates with Google Gemini (via Ollama cloud or direct API) or a local Ollama
-model to generate structured financial advice. Falls back gracefully through a
-three-tier waterfall to rule-based advice if all providers fail.
-
-Waterfall order (MODEL_PROVIDER=auto):
-  Tier 1 → Gemini cloud via Ollama  (gemini-3-flash-preview:cloud)
-  Tier 2 → Google Gemini REST API   (requires GOOGLE_API_KEY)
-  Tier 3 → Local Ollama model       (e.g. qwen2.5-7B-Q4)
-  Final  → Deterministic rule-based advice
-
-MODEL_PROVIDER env var values:
-  "auto"          — full waterfall (default)
-  "gemini_ollama" — Tier 1 only, then rule-based
-  "gemini"        — Tier 2 only, then rule-based
-  "ollama"        — Tier 3 only, then rule-based
-"""
-
 from __future__ import annotations
 
 import json
@@ -45,29 +26,13 @@ from prompts.advice_prompts import FALLBACK_ADVICE, build_advice_prompt, build_o
 logger = logging.getLogger(__name__)
 
 
-# Public Interface
+
 
 def generate_advice(
     profile: FinancialProfile,
     metrics: FinancialMetrics,
     goals: list[GoalPlan],
 ) -> dict:
-    """
-    Generate AI-powered financial advice using the configured provider waterfall.
-
-    Tier 1: Gemini cloud via Ollama  (gemini-3-flash-preview:cloud)
-    Tier 2: Google Gemini REST API
-    Tier 3: Local Ollama model
-    Final:  Deterministic rule-based advice
-
-    Args:
-        profile: Validated FinancialProfile.
-        metrics: Computed FinancialMetrics.
-        goals:   List of GoalPlan instances.
-
-    Returns:
-        Parsed advice dict matching OUTPUT_SCHEMA.
-    """
     provider = os.getenv("MODEL_PROVIDER", MODEL_PROVIDER).strip().lower()
     full_prompt = build_advice_prompt(profile, metrics, goals)
     compact_prompt = build_ollama_prompt(profile, metrics, goals)
@@ -107,16 +72,9 @@ def generate_advice(
     return _rule_based_advice(profile, metrics, goals)
 
 
-# Gemini Cloud (Ollama) fallback
+
 
 def _call_gemini_cloud_via_ollama(prompt: str) -> dict:
-    """
-    Call Gemini cloud model routed through Ollama's /api/chat endpoint.
-
-    Requires:
-      - Ollama running: `ollama serve`
-      - Model pulled:  `ollama pull gemini-3-flash-preview:cloud`
-    """
     import requests  # noqa: PLC0415
 
     base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
@@ -163,7 +121,7 @@ def _call_gemini_cloud_via_ollama(prompt: str) -> dict:
     return _parse_llm_output(raw_text)
 
 
-# Gemini REST API fallback
+
 
 @retry(
     stop=stop_after_attempt(3),
@@ -171,7 +129,6 @@ def _call_gemini_cloud_via_ollama(prompt: str) -> dict:
     reraise=True,
 )
 def _call_gemini_api(prompt: str, api_key: str) -> dict:
-    """Call the Google Gemini REST API with retry logic."""
     import google.generativeai as genai  # noqa: PLC0415
 
     genai.configure(api_key=api_key)
@@ -188,7 +145,7 @@ def _call_gemini_api(prompt: str, api_key: str) -> dict:
     return _parse_llm_output(response.text)
 
 
-# Local Ollama fallback
+
 
 @retry(
     stop=stop_after_attempt(2),
@@ -196,7 +153,6 @@ def _call_gemini_api(prompt: str, api_key: str) -> dict:
     reraise=True,
 )
 def _call_ollama_api(prompt: str) -> dict:
-    """Call the local Ollama REST API for inference."""
     import requests  # noqa: PLC0415
 
     base_url = os.getenv("OLLAMA_BASE_URL", OLLAMA_BASE_URL).rstrip("/")
@@ -238,10 +194,9 @@ def _call_ollama_api(prompt: str) -> dict:
     return _parse_llm_output(raw_text)
 
 
-# Utilities
+
 
 def _parse_llm_output(raw_text: str) -> dict:
-    """Parse JSON from the raw LLM output string. Strips Markdown code fences if present."""
     text = raw_text.strip()
     if text.startswith("```"):
         lines = text.split("\n")
@@ -251,14 +206,13 @@ def _parse_llm_output(raw_text: str) -> dict:
     return json.loads(text.strip())
 
 
-# Rule-based fallback logic
+
 
 def _rule_based_advice(
     profile: FinancialProfile,
     metrics: FinancialMetrics,
     goals: list[GoalPlan],
 ) -> dict:
-    """Generate deterministic rule-based fallback advice."""
     advice: dict[str, Any] = dict(FALLBACK_ADVICE)
 
     score_label = _score_label(metrics.financial_health_score)
@@ -298,15 +252,9 @@ def _rule_based_advice(
     return advice
 
 
-# UI Components
+
 
 def render_advice_sections(advice: dict) -> None:
-    """
-    Render all 8 AI advice sections using Streamlit expanders.
-
-    Args:
-        advice: Parsed advice dict from any provider or rule-based fallback.
-    """
     provider = st.session_state.get("api_provider", "")
     has_error = st.session_state.get("api_error", False)
     error_msgs = st.session_state.get("api_error_msgs", [])

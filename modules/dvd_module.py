@@ -1,5 +1,3 @@
-"""Data Visualisation Dashboard (DVD) module."""
-
 from __future__ import annotations
 
 import streamlit as st
@@ -43,7 +41,7 @@ ASSET_COLORS = [
 # Utility functions
 
 def hex_to_rgba(hex_color: str, opacity: float) -> str:
-    """Converts a hex color string to an rgba string for Plotly."""
+
     hex_color = hex_color.lstrip('#')
     r, g, b = tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
     return f"rgba({r}, {g}, {b}, {opacity})"
@@ -90,7 +88,6 @@ def render_dashboard(
     goals: list[GoalPlan],
     charts: dict[str, go.Figure],
 ) -> None:
-    """Render the tabbed dashboard with all charts."""
     st.markdown(
         """
         <div class="page-header">

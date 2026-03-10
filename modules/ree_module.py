@@ -30,19 +30,6 @@ def generate_report(
     advice: dict,
     charts: dict[str, Any],
 ) -> io.BytesIO:
-    """
-    Compile a full PDF financial report with all 8 sections.
-
-    Args:
-        profile: Validated FinancialProfile.
-        metrics: Computed FinancialMetrics.
-        goals: List of GoalPlan instances.
-        advice: Parsed AI advice dict.
-        charts: Dict of Plotly Figure objects.
-
-    Returns:
-        BytesIO stream containing the compiled PDF.
-    """
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -72,7 +59,7 @@ def generate_report(
     styles = _build_styles()
     story = []
 
-        # Cover Page
+
     story.append(Spacer(1, 3 * cm))
     story.append(Paragraph("💰 AI Financial Advisor", styles["cover_title"]))
     story.append(Spacer(1, 0.5 * cm))
@@ -95,7 +82,7 @@ def generate_report(
     ))
     story.append(PageBreak())
 
-        # Executive Summary
+
     story.append(Paragraph("Executive Summary", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
     story.append(Spacer(1, 0.3 * cm))
@@ -105,7 +92,7 @@ def generate_report(
     story.append(Paragraph(summary_text, styles["body"]))
     story.append(Spacer(1, 0.5 * cm))
 
-        # Financial Metrics Table
+
     story.append(Paragraph("Financial Health Metrics", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
     story.append(Spacer(1, 0.3 * cm))
@@ -136,7 +123,7 @@ def generate_report(
     story.append(t)
     story.append(Spacer(1, 0.5 * cm))
 
-        # AI Recommendations
+
     story.append(PageBreak())
     story.append(Paragraph("AI-Powered Recommendations", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
@@ -176,7 +163,7 @@ def generate_report(
             story.append(at)
     story.append(Spacer(1, 0.3 * cm))
 
-        # Goal Plans
+
     if goals:
         story.append(PageBreak())
         story.append(Paragraph("Goal Investment Roadmaps", styles["section_title"]))
@@ -207,7 +194,7 @@ def generate_report(
                     story.append(Paragraph(f"  ✓ {_clean_text(str(m))}", styles["body"]))
                 story.append(Spacer(1, 0.2 * cm))
 
-        # Action Plan
+
     story.append(PageBreak())
     story.append(Paragraph("30-60-90 Day Action Plan", styles["section_title"]))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#2E75B6")))
@@ -230,7 +217,7 @@ def generate_report(
         at.setStyle(_basic_table_style())
         story.append(at)
 
-        # Disclaimer
+
     story.append(Spacer(1, 1 * cm))
     story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor("#CCCCCC")))
     story.append(Spacer(1, 0.3 * cm))
@@ -248,7 +235,7 @@ def generate_report(
     return buf
 
 
-# PDF Styles
+
 
 def _build_styles() -> dict:
     from reportlab.lib.styles import ParagraphStyle
