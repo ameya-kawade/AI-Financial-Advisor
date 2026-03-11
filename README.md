@@ -6,9 +6,11 @@ Most of us know we should handle our money better, but it's hard to know where t
 
 - **Check your financial health**: We look at 8 core areas—like your savings rate and debt-to-income ratio—and give you an overall score. No guesswork.
 - **Plan for big goals**: Whether it's a house, education, or retirement, you can see if you're on track and how much more you need to save each month.
-- **Get AI-powered advice**: The app uses Gemini (or a local Ollama model if you prefer privacy) to look at your specific numbers and suggest ways to optimize your spending or pay down debt.
+- **Chat with your data**: Use the built-in advisor to ask specific questions like "Should I pay off my credit card or start an SIP?" or "How can I save for a house in 5 years?" It uses your actual profile to give advice that isn't just generic—it's tailored to your situation.
 - **Visualise your future**: Interactive charts show you where your money is going and where it could be in 10, 20, or 30 years.
 - **Take it with you**: One click generates a clean PDF report with your full analysis and a 30-60-90 day action plan.
+
+It’s basically like having a financial planner who actually knows your bank balance and doesn't just give one-size-fits-all advice.
 
 ## Setup
 
